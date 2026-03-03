@@ -1,17 +1,21 @@
-import { useState } from "react";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import React from 'react';
+import { Dashboard } from './components/Dashboard';
 
-function App() {
-  const [count, setCount] = useState(0);
+const App: React.FC = () => {
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', backgroundColor: '#e0e0e0' }}>
+      
+      {/* 1. The Global Dashboard (Floating UI) */}
+      <Dashboard />
 
-  const listRouter = createBrowserRouter([
-    {
-      path: "/",
-      element: <h1>Home</h1>,
-      errorElement: <h1>Not Found</h1>
-    },
-  ]);
-  return <RouterProvider router={listRouter} />;
-}
+      {/* 2. Placeholder for the ArcGIS Map */}
+      <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <h1 style={{ color: '#aaa' }}>ArcGIS Map Loading...</h1>
+        {/* Replace this div with <ArcGISMap /> in the next step */}
+      </div>
+
+    </div>
+  );
+};
 
 export default App;
