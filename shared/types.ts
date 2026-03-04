@@ -3,14 +3,17 @@ export type DataParadigm = 'websocket' | 'rest' | 'webhook';
 export interface Sensor {
   id: string;
   name: string;
+  location: string;
   type: string;
   manufacturer: string;
   paradigm: DataParadigm;
+  status: string;
   unit: string;
   markerColor: string;
   position: {
     x: string;
     y: string;
+    z: string;
   };
 }
 
