@@ -74,32 +74,99 @@ SENSOR_TYPES.forEach(profile => {
 
 // --- 2. REST ENDPOINTS ---
 app.get('/api/sensors', (req: Request, res: Response) => {
-  res.json(sensors);
+  // 1. Get pagination parameters from the query string (default to page 1, 50 items per page)
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
+
+  // 2. Calculate pagination boundaries
+  const total = sensors.length;
+  const totalPages = Math.ceil(total / limit);
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+
+  // 3. Slice the array to get only the requested page
+  const paginatedSensors = sensors.slice(startIndex, endIndex);
+
+  res.status(200).json({
+    sensors: paginatedSensors,
+    metadata: {
+      status: 200,
+      message: "Sensors retrieved successfully",
+      error: false,
+      errorMessage: null,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        total: total,
+        perPage: limit
+      }
+    }
+  });
 });
 
 app.get('/api/sensors/:id/data', (req: Request, res: Response) => {
   const { id } = req.params;
   const days = parseInt(req.query.days as string) || 7; 
+
+  // 1. Get pagination params
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
+
   const sensor = sensors.find(s => s.id === id);
   
+  // Handle 404 with the standard error format
   if (!sensor) {
-    return res.status(404).send('Sensor not found');
+    return res.status(404).json({
+      history: [],
+      metadata: {
+        status: 404,
+        message: "Failed to retrieve sensor data",
+        error: true,
+        errorMessage: `Sensor not found with ID: ${id}`,
+        pagination: null
+      }
+    });
   }
 
-  const history = [];
+  // Generate the full history first
+  const fullHistory = [];
   const now = new Date();
   
   for(let i = days * 24; i > 0; i--) { 
     const timestamp = new Date(now.getTime() - (i * 60 * 60 * 1000));
-    // Add realistic noise to the base value
     const noise = (Math.random() - 0.5) * (sensor.type === 'Wind' ? 10 : 2);
-    history.push({
+    fullHistory.push({
       timestamp: timestamp.toISOString(),
       value: Math.max(0, sensor.type === 'Rain' ? Math.random() * 5 : (SENSOR_TYPES.find(p => p.type === sensor.type)?.base || 50) + noise), 
       unit: sensor.unit
     });
   }
-  res.json(history);
+
+  // 2. Calculate pagination for the history data
+  const total = fullHistory.length;
+  const totalPages = Math.ceil(total / limit);
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+  
+  // 3. Slice the data
+  const paginatedHistory = fullHistory.slice(startIndex, endIndex);
+
+  // Return the successful history payload
+  res.status(200).json({
+    history: paginatedHistory,
+    metadata: {
+      status: 200,
+      message: "Historical data retrieved successfully",
+      error: false,
+      errorMessage: null,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        total: total,
+        perPage: limit
+      }
+    }
+  });
 });
 
 const server = http.createServer(app);
