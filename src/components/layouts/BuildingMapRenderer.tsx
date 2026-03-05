@@ -6,7 +6,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { MapContainer } from './MapContainer';
 import { SensorDrawer } from '../sensor/SensorDrawer'; 
 import { GlobalDashboardModal } from './GlobalDashboardModal';
-import { MapControls } from '../MapControls';
+import { MapControls } from '../map/MapControls';
 import { SensorFilterMenu } from '../sensor/SensorFilterMenu';
 
 export const BuildingMapRenderer: React.FC = () => {
