@@ -1,11 +1,56 @@
-import express, { Request, Response } from 'express';
+import express, {type Request, type Response} from 'express';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
-import { Sensor, DataParadigm, LiveDataPayload, WebhookAlertPayload } from '../shared/types';
+import type { DataParadigm, LiveDataPayload, Sensor, WebhookAlertPayload } from '../shared/types';
+// import { Sensor, DataParadigm, LiveDataPayload, WebhookAlertPayload } from '../shared/types';
 
 const app = express();
 app.use(cors());
+
+// --- ESRI ADMIN BUILDING REAL-WORLD BOUNDARIES ---
+// Location: Redlands, California, USA
+const BUILDING_BOUNDS = {
+  lonMin: -117.1960, lonMax: -117.1953, 
+  latMin: 34.0563, latMax: 34.0566,   
+  height: 15, 
+  groundElevation: 400 
+};
+
+// --- SMART COORDINATE GENERATOR ---
+function generateBuildingCoordinates(location: string, zMinRatio: number, zMaxRatio: number) {
+  let lon, lat;
+  
+  // 1. Calculate realistic absolute Z (Elevation in meters)
+  const zMin = zMinRatio * BUILDING_BOUNDS.height;
+  const zMax = zMaxRatio * BUILDING_BOUNDS.height;
+  const absoluteZ = BUILDING_BOUNDS.groundElevation + (zMin + Math.random() * (zMax - zMin));
+
+  // 2. Calculate X (Longitude) and Y (Latitude) based on semantic location
+  if (location.includes('Roof') || location.includes('Dome')) {
+    lon = BUILDING_BOUNDS.lonMin + (BUILDING_BOUNDS.lonMax - BUILDING_BOUNDS.lonMin) * (0.4 + Math.random() * 0.2);
+    lat = BUILDING_BOUNDS.latMin + (BUILDING_BOUNDS.latMax - BUILDING_BOUNDS.latMin) * (0.4 + Math.random() * 0.2);
+  } 
+  else if (location.includes('Exterior Wall')) {
+    // Snap to outer edges
+    const edge = Math.floor(Math.random() * 4);
+    if (edge === 0) { lat = BUILDING_BOUNDS.latMax; lon = BUILDING_BOUNDS.lonMin + Math.random() * (BUILDING_BOUNDS.lonMax - BUILDING_BOUNDS.lonMin); }
+    else if (edge === 1) { lat = BUILDING_BOUNDS.latMin; lon = BUILDING_BOUNDS.lonMin + Math.random() * (BUILDING_BOUNDS.lonMax - BUILDING_BOUNDS.lonMin); }
+    else if (edge === 2) { lon = BUILDING_BOUNDS.lonMax; lat = BUILDING_BOUNDS.latMin + Math.random() * (BUILDING_BOUNDS.latMax - BUILDING_BOUNDS.latMin); }
+    else { lon = BUILDING_BOUNDS.lonMin; lat = BUILDING_BOUNDS.latMin + Math.random() * (BUILDING_BOUNDS.latMax - BUILDING_BOUNDS.latMin); }
+  } 
+  else if (location.includes('Foundation')) {
+    lon = BUILDING_BOUNDS.lonMin + Math.random() * (BUILDING_BOUNDS.lonMax - BUILDING_BOUNDS.lonMin);
+    lat = BUILDING_BOUNDS.latMin + Math.random() * (BUILDING_BOUNDS.latMax - BUILDING_BOUNDS.latMin);
+  }
+  else {
+    // Internal sensors (Pillars, floors, shafts) scattered inside the volume
+    lon = BUILDING_BOUNDS.lonMin + (BUILDING_BOUNDS.lonMax - BUILDING_BOUNDS.lonMin) * (0.1 + Math.random() * 0.8);
+    lat = BUILDING_BOUNDS.latMin + (BUILDING_BOUNDS.latMax - BUILDING_BOUNDS.latMin) * (0.1 + Math.random() * 0.8);
+  }
+
+  return { x: lon.toFixed(6), y: lat.toFixed(6), z: absoluteZ.toFixed(2) };
+}
 
 // --- 1. SENSOR INVENTORY & REALISTIC MAPPING ---
 // We add 'locations', 'zRange' (min/max elevation), and 'exactCount' to make them realistic.
@@ -48,13 +93,10 @@ SENSOR_TYPES.forEach(profile => {
     // Pick a random physical location from the allowed list
     const locationName = profile.locations[Math.floor(Math.random() * profile.locations.length)];
     
-    // Calculate realistic Z (elevation) based on the restricted range
-    const [zMin, zMax] = profile.zRange;
-    const randomZ = zMin + Math.random() * (zMax - zMin);
+    const coords = generateBuildingCoordinates(locationName, profile.zRange[0], profile.zRange[1]);
 
     sensors.push({
       id: `${profile.type.toLowerCase()}_${i}`,
-      // Make the name readable and context-aware (e.g., "Wind - Mái nhà")
       name: `${profile.type} (${locationName}${count > 1 ? ' ' + i : ''})`,
       location: locationName,
       type: profile.type,
@@ -63,11 +105,7 @@ SENSOR_TYPES.forEach(profile => {
       status: Math.random() > 0.85 ? 'Warning' : 'Healthy', // 15% chance of warning
       unit: profile.unit,
       markerColor: profile.paradigm === 'webhook' ? 'red' : 'darkGrey',
-      position: { 
-        x: Math.random().toFixed(3), 
-        y: Math.random().toFixed(3),
-        z: randomZ.toFixed(3) // Z is now logically bounded!
-      }
+      position: coords
     });
   }
 });
