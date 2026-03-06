@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Activity, Search, ChevronDown, ChevronRight, LocateFixed, X, MapPin } from 'lucide-react';
 import type { Building, Sensor } from '../../shared/types';
 import { Button } from '@/components/ui/button';
@@ -22,12 +22,41 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
 }) => {
   const [activeMenu, setActiveMenu] = useState<'buildings' | 'sensors' | null>(null);
   
-  // Independent Search States
+  // Independent Search From URL
   const [bldgSearchQuery, setBldgSearchQuery] = useState('');
   const [sensorSearchQuery, setSensorSearchQuery] = useState('');
-  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [globalSearchQuery, setGlobalSearchQuery] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('q') || '';
+  });
   const [showGlobalResults, setShowGlobalResults] = useState(false);
   
+  const isFirstSearchMount = useRef(true);
+  
+  // Auto-open results if loaded with a query
+  useEffect(() => {
+    if (globalSearchQuery) setShowGlobalResults(true);
+  }, []);
+
+  // --- SYNC SEARCH TO URL ON CHANGE ---
+  useEffect(() => {
+    if (isFirstSearchMount.current) {
+      isFirstSearchMount.current = false;
+      return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (globalSearchQuery) {
+      urlParams.set('q', globalSearchQuery);
+    } else {
+      urlParams.delete('q');
+    }
+    
+    const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [globalSearchQuery]);
+
+
   // Local "Draft" states for the apply workflow
   const [draftBldgFilters, setDraftBldgFilters] = useState<Record<string, boolean>>(buildingFilters);
   const [draftSensorFilters, setDraftSensorFilters] = useState<Record<string, boolean>>(sensorFilters);
@@ -38,13 +67,43 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
   useEffect(() => { setDraftSensorFilters(sensorFilters); }, [sensorFilters]);
 
   // --- ACTIONS ---
+  // --- ACTION-DRIVEN URL SYNCING ---
   const handleApplyBuildings = () => {
     onApplyBuildingFilters(draftBldgFilters);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeIds = Object.keys(draftBldgFilters).filter(id => draftBldgFilters[id]);
+    
+    if (activeIds.length > 0 && activeIds.length < buildings.length) {
+      urlParams.set('buildings', activeIds.join(','));
+    } else {
+      urlParams.delete('buildings');
+    }
+    
+    // Changing buildings usually invalidates current sensor selections, so we wipe it from the URL
+    urlParams.delete('sensors'); 
+    
+    const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+    window.history.replaceState({}, '', newUrl);
+
     setActiveMenu('sensors'); 
   };
 
   const handleApplySensors = () => {
     onApplySensorFilters(draftSensorFilters);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeIds = Object.keys(draftSensorFilters).filter(id => draftSensorFilters[id]);
+    
+    if (activeIds.length > 0 && activeIds.length < sensors.length) {
+      urlParams.set('sensors', activeIds.join(','));
+    } else {
+      urlParams.delete('sensors');
+    }
+    
+    const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+    window.history.replaceState({}, '', newUrl);
+
     setActiveMenu(null);
   };
 
