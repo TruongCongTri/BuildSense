@@ -1,46 +1,76 @@
 import React from 'react';
-import { LayoutGrid, Bell, User } from 'lucide-react';
+import { Bell, LayoutDashboard, Database, Settings, Map, Activity } from 'lucide-react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 export const Header: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const currentQuery = searchParams.toString();
+  const queryString = currentQuery ? `?${currentQuery}` : '';
+  
+  const navItems = [
+    { name: 'Map', path: '/map', icon: Map },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Data Logs', path: '/datalog', icon: Database },
+    { name: 'Sensors', path: '#', icon: Activity },
+    { name: 'Settings', path: '#', icon: Settings },
+  ];
+  
+  
   return (
     <header className="flex items-center justify-between px-6 py-3 bg-[#111114] border-b border-gray-800 text-white z-50 relative">
       {/* Left side: Logo & Title */}
       <div className="flex items-center gap-3">
         <div className="p-1.5 bg-blue-600 rounded-md">
-          <LayoutGrid className="w-5 h-5 text-white" />
+          <Activity className="text-white w-5 h-5" />
         </div>
-        <h1 className="text-lg font-semibold tracking-wide">Smart Building Monitor</h1>
+        <h1 className="text-lg font-semibold tracking-wide">BuildSense</h1>
       </div>
 
       {/* Right side: Navigation & Profile */}
       <div className="flex items-center gap-8">
-        {/* Nav Links */}
-        <nav className="flex items-center gap-6 text-sm font-medium text-gray-400">
-          <a href="#" className="hover:text-white transition-colors">Dashboard</a>
-          <a href="#" className="text-blue-500 border-b-2 border-blue-500 pb-1">Map View</a>
-          <a href="#" className="hover:text-white transition-colors">Reports</a>
-          <a href="#" className="hover:text-white transition-colors">Settings</a>
+        <nav className="hidden md:flex items-center gap-1 flex-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.path}
+                to={`${item.path}${queryString}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                  isActive 
+                    ? 'bg-[#3B82F6]/10 text-[#3B82F6]' 
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#2A2F3A]'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {item.name}
+              </Link>
+            );
+          })}
         </nav>
+        {/* Nav Links */}
+        
 
         {/* Divider */}
         <div className="w-px h-6 bg-gray-700"></div>
 
         {/* Notifications & Profile */}
-        <div className="flex items-center gap-5">
-          <button className="relative text-gray-400 hover:text-white transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-          
-          <div className="flex items-center gap-3 cursor-pointer group">
-            <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
-              Admin User
-            </span>
-            <div className="p-1.5 bg-gray-800 rounded-full group-hover:bg-gray-700 transition-colors">
-              <User className="w-4 h-4 text-blue-500" />
-            </div>
-          </div>
-        </div>
+        <div className="flex items-center gap-4">
+        
+        
+        <button className="relative p-2 text-gray-400 hover:text-white transition-colors">
+          <Bell className="w-5 h-5" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-[#111418]"></span>
+        </button>
+
+        <Avatar className="w-8 h-8 border border-gray-700 cursor-pointer hover:border-gray-500 transition-colors">
+          <AvatarImage src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="User" />
+          <AvatarFallback className="bg-blue-600 text-xs">US</AvatarFallback>
+        </Avatar>
+      </div>
       </div>
     </header>
   );

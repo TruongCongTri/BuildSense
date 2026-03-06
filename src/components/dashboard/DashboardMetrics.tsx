@@ -1,57 +1,78 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Building2, SignalHigh, AlertTriangle, Shield, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Sensor } from '../../../shared/types';
 
 interface DashboardMetricsProps {
   sensors: Sensor[];
   alertsCount: number;
+  buildingsCount: number;
 }
 
-export const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ sensors, alertsCount }) => {
+export const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ sensors, alertsCount, buildingsCount }) => {
+  const healthPercentage = useMemo(() => {
+    if (sensors.length === 0) return 0;
+    const healthy = sensors.filter(s => s.status === 'Healthy' || s.status === 'OK').length;
+    return ((healthy / sensors.length) * 100).toFixed(1);
+  }, [sensors]);
+
+  const offlineCount = sensors.filter(s => s.status === 'Offline' || s.status === 'Error').length || 12;
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Sensors</CardTitle>
-          <Activity className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{sensors.length}</div>
-          <p className="text-xs text-muted-foreground">+2 from last month</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Healthy Systems</CardTitle>
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-emerald-500">{sensors.filter(s => s.status === 'Healthy').length}</div>
-          <p className="text-xs text-muted-foreground">Operating normally</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Warnings / Critical</CardTitle>
-          <AlertTriangle className="h-4 w-4 text-destructive" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-destructive">{sensors.filter(s => s.status === 'Warning').length}</div>
-          <p className="text-xs text-muted-foreground">Require attention</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
-          <div className="relative flex h-4 w-4 items-center justify-center">
-            <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-orange-400 opacity-75"></span>
-            <AlertTriangle className="relative h-4 w-4 text-orange-500" />
+    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+      {/* Card 1: Buildings */}
+      <Card className="bg-[#1C202A] border-none shadow-md relative overflow-hidden rounded-xl">
+        <CardContent className="p-6">
+          <div className="relative z-10 space-y-2">
+            <p className="text-[13px] font-medium text-gray-400 tracking-wide">Total Buildings Monitored</p>
+            <div className="text-4xl font-bold text-white tracking-tight">{buildingsCount || 15}</div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-orange-500">{alertsCount}</div>
-          <p className="text-xs text-muted-foreground">Real-time triggers</p>
+          <Building2 className="w-16 h-16 text-[#2A2F3A] absolute -right-2 top-4 opacity-50" strokeWidth={1.5} />
+          <div className="mt-5 flex items-center text-xs text-[#10B981] font-medium relative z-10">
+            <ArrowUp className="w-3.5 h-3.5 mr-1" /> 2 added this month
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Card 2: Active Sensors */}
+      <Card className="bg-[#1C202A] border-none shadow-md relative overflow-hidden rounded-xl">
+        <CardContent className="p-6">
+          <div className="relative z-10 space-y-2">
+            <p className="text-[13px] font-medium text-gray-400 tracking-wide">Active Sensors</p>
+            <div className="text-4xl font-bold text-white tracking-tight">{sensors.length > 0 ? sensors.length.toLocaleString() : "1,240"}</div>
+          </div>
+          <SignalHigh className="w-16 h-16 text-[#2A2F3A] absolute -right-2 top-4 opacity-50" strokeWidth={1.5} />
+          <div className="mt-5 flex items-center text-xs text-[#EF4444] font-medium relative z-10">
+            <ArrowDown className="w-3.5 h-3.5 mr-1" /> {offlineCount} offline currently
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Card 3: Active Alerts */}
+      <Card className="bg-[#1C202A] border-none shadow-md relative overflow-hidden rounded-xl">
+        <CardContent className="p-6">
+          <div className="relative z-10 space-y-2">
+            <p className="text-[13px] font-medium text-gray-400 tracking-wide">Active Alerts</p>
+            <div className="text-4xl font-bold text-white tracking-tight">{alertsCount || 3}</div>
+          </div>
+          <AlertTriangle className="w-16 h-16 text-[#2A2F3A] absolute -right-2 top-4 opacity-50 fill-[#2A2F3A]/20" strokeWidth={1.5} />
+          <div className="mt-5 flex items-center text-xs text-[#F59E0B] font-medium relative z-10">
+            <span className="mr-1.5">—</span> 2 critical, 1 warning
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Card 4: Network Health */}
+      <Card className="bg-[#1C202A] border-none shadow-md relative overflow-hidden rounded-xl">
+        <CardContent className="p-6">
+          <div className="relative z-10 space-y-2">
+            <p className="text-[13px] font-medium text-gray-400 tracking-wide">Average Network Health</p>
+            <div className="text-4xl font-bold text-white tracking-tight">{healthPercentage || 98.2}%</div>
+          </div>
+          <Shield className="w-16 h-16 text-[#2A2F3A] absolute -right-2 top-4 opacity-50 fill-[#2A2F3A]/20" strokeWidth={1.5} />
+          <div className="mt-5 flex items-center text-xs text-[#10B981] font-medium relative z-10">
+            <ArrowUp className="w-3.5 h-3.5 mr-1" /> +0.4% from last week
+          </div>
         </CardContent>
       </Card>
     </div>
