@@ -1,25 +1,25 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, Settings2, BarChart3, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Settings2, BarChart3, Globe } from 'lucide-react';
 
 interface MapControlsProps {
   onOpenDashboard: () => void;
-  showBuildingModel: boolean;
-  onToggleBuildingModel: () => void;
   isGlobalVisible: boolean;
   onToggleGlobalVisibility: () => void;
   isFilterMenuOpen: boolean;
   onToggleFilterMenu: () => void;
+  isBuildingMenuOpen: boolean;
+  onToggleBuildingMenu: () => void;
 }
 
 export const MapControls: React.FC<MapControlsProps> = ({
-  onOpenDashboard,
-  showBuildingModel,
-  onToggleBuildingModel,
-  isGlobalVisible,
+  onOpenDashboard, 
+  isGlobalVisible, 
   onToggleGlobalVisibility,
-  isFilterMenuOpen,
-  onToggleFilterMenu
+  isFilterMenuOpen, 
+  onToggleFilterMenu,
+  isBuildingMenuOpen, 
+  onToggleBuildingMenu
 }) => {
   return (
     <>
@@ -29,30 +29,37 @@ export const MapControls: React.FC<MapControlsProps> = ({
       </Button>
 
       <div className="flex gap-2">
+        {/* PORTFOLIO TOGGLE BUTTON */}
         <Button 
-          variant={showBuildingModel ? "secondary" : "default"} 
-          onClick={onToggleBuildingModel}
+          variant={isBuildingMenuOpen ? "default" : "secondary"} 
+          onClick={onToggleBuildingMenu}
           className="shadow-sm border border-border"
         >
-          <Building2 className="mr-2 h-4 w-4" />
-          {showBuildingModel ? 'Hide Building' : 'Show Building'}
+          <Globe className="mr-2 h-4 w-4" />
+          Portfolio
         </Button>
 
+        {/* SENSOR VISIBILITY TOGGLE */}
         <Button 
           variant={isGlobalVisible ? "secondary" : "default"} 
           onClick={onToggleGlobalVisibility}
           className="shadow-sm border border-border"
         >
-          {isGlobalVisible ? <><EyeOff className="mr-2 h-4 w-4" /> Hide Sensors</> : <><Eye className="mr-2 h-4 w-4" /> Show Sensors</>}
+          {isGlobalVisible ? (
+            <><EyeOff className="mr-2 h-4 w-4" /> Hide Sensors</>
+          ) : (
+            <><Eye className="mr-2 h-4 w-4" /> Show Sensors</>
+          )}
         </Button>
         
+        {/* SENSOR FILTER MENU TOGGLE */}
         <Button 
           variant={isFilterMenuOpen ? "default" : "secondary"} 
           onClick={onToggleFilterMenu}
           className="shadow-sm border border-border"
         >
           <Settings2 className="mr-2 h-4 w-4" />
-          Filter
+          Filters
         </Button>
       </div>
     </>

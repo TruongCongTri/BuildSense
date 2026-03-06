@@ -1,16 +1,16 @@
 import React from 'react';
 import { BuildingMapRenderer } from './components/layouts/BuildingMapRenderer';
+import { Header } from './components/layouts/Header';
+import { Footer } from './components/layouts/Footer';
 
 const App: React.FC = () => {
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden', backgroundColor: '#1a1a1a' }}>
-      
-      {/* The BuildingMapRenderer acts as the main orchestrator for Phase 2-6.
-        It contains the ArcGIS 3D Scene, the Filter UI, the Sensor Drawer, 
-        and the Global Dashboard Modal.
-      */}
-      <BuildingMapRenderer />
-
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
+      <Header />
+      <main className="flex-1 relative">
+        <BuildingMapRenderer />
+      </main>
+      <Footer />
     </div>
   );
 };

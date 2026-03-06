@@ -20,49 +20,46 @@ export const SensorTooltip: React.FC<SensorTooltipProps> = ({ visible, x, y, sen
 
   return (
     <Card 
-      className="absolute z-50 w-64 p-4 shadow-lg pointer-events-none -translate-y-1/2"
-      style={{ top: `${y}px`, left: `${x + 20}px` }}
+      className="absolute z-50 w-56 p-3 shadow-2xl pointer-events-none -translate-x-1/2 -translate-y-full mb-3 bg-[#1A1D21] border-gray-700 text-white"
+      style={{ left: x, top: y }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 pb-3 mb-3 border-b">
-        <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-          sensor.markerColor === 'red' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-foreground'
-        }`}>
-          {getSensorIcon(sensor.type, 16, 'currentColor')}
+      {/* Top bar with Icon and Title */}
+      <div className="flex items-center gap-3 mb-2 pb-2 border-b border-gray-800">
+        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/10 text-blue-500">
+          {getSensorIcon(sensor.type, 14, 'currentColor')}
         </div>
-        <strong className="text-sm font-semibold">{sensor.name}</strong>
+        <h4 className="text-sm font-semibold tracking-wide truncate">
+          {sensor.name}
+        </h4>
       </div>
       
-      {/* Body */}
-      <div className="flex flex-col gap-2 text-sm">
+      {/* Key/Value Data */}
+      <div className="flex flex-col gap-1.5 text-xs mt-3">
         <div className="flex justify-between items-center">
-          <span className="text-muted-foreground text-xs font-medium uppercase">Type</span> 
-          <span className="font-medium">{sensor.type}</span>
+          <span className="text-gray-500">Status</span>
+          {sensor.status === 'Warning' ? (
+             <Badge variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20 text-[10px] uppercase">Warn</Badge>
+          ) : (
+             <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] uppercase">OK</Badge>
+          )}
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-muted-foreground text-xs font-medium uppercase">Location</span> 
-          <span className="font-medium">{sensor.location || 'N/A'}</span>
-        </div>
-        <div className="flex justify-between items-center mt-1">
-          <span className="text-muted-foreground text-xs font-medium uppercase">Status</span> 
-          <Badge variant={sensor.status === 'Warning' ? 'destructive' : 'secondary'}>
-            {sensor.status}
-          </Badge>
+          <span className="text-gray-500">Type</span>
+          <span className="text-gray-300 font-medium">{sensor.type}</span>
         </div>
         
-        {/* Live Data */}
         {liveData && (
-          <>
-            <div className="h-px bg-border my-1" />
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground text-xs font-medium uppercase">Live Value</span> 
-              <span className="font-mono font-bold text-primary">
-                {liveData.value} <span className="text-xs font-normal text-muted-foreground">{sensor.unit}</span>
+            <div className="flex justify-between items-center mt-1 border-t border-gray-800/50 pt-2">
+              <span className="text-gray-500">Live Reading</span> 
+              <span className="font-mono font-bold text-white text-sm">
+                {liveData.value} <span className="text-xs font-normal text-gray-500">{sensor.unit}</span>
               </span>
             </div>
-          </>
         )}
       </div>
+
+      {/* Small pointer triangle pointing down at the marker */}
+      <div className="absolute left-1/2 bottom-[-6px] transform -translate-x-1/2 w-3 h-3 bg-[#1A1D21] border-b border-r border-gray-700 rotate-45"></div>
     </Card>
   );
 };

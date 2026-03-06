@@ -2,6 +2,7 @@ export type DataParadigm = 'websocket' | 'rest' | 'webhook';
 
 export interface Sensor {
   id: string;
+  buildingId: string;
   name: string;
   location: string;
   type: string;
@@ -36,4 +37,26 @@ export interface WebhookAlertPayload {
   severity: string;
   message: string;
   timestamp: string;
+}
+
+export interface BuildingBounds {
+  lonMin: number;
+  lonMax: number;
+  latMin: number;
+  latMax: number;
+  height: number;
+  groundElevation: number;
+}
+
+export interface Building {
+  id: string;
+  name: string;
+  modelUrl: string; // The ArcGIS Scene Server URL
+  bounds: BuildingBounds;
+  defaultCamera: {
+    x: number;
+    y: number;
+    z: number;
+    tilt: number;
+  };
 }

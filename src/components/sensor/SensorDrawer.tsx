@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { Sensor, HistoricalData } from '../../../shared/types';
 import { getSensorIcon } from '../../utils/iconMap';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { X } from 'lucide-react';
 
 // Child Components
 import { SensorDetailsSection } from './SensorDetailsSection';
@@ -15,18 +16,15 @@ interface SensorDrawerProps {
 }
 
 export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sensor }) => {
-  // --- UI TOGGLE STATES ---
   const [isDetailsOpen, setIsDetailsOpen] = useState(true);
   const [isChartOpen, setIsChartOpen] = useState(true);
   const [isTableOpen, setIsTableOpen] = useState(true);
 
-  // --- CHART STATES ---
   const [chartData, setChartData] = useState<HistoricalData[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(false);
   const [chartDays, setChartDays] = useState<string>("7");
   const [chartType, setChartType] = useState<"line" | "bar">("line");
 
-  // --- TABLE STATES ---
   const [tableData, setTableData] = useState<HistoricalData[]>([]);
   const [isTableLoading, setIsTableLoading] = useState(false);
   const [tableDays, setTableDays] = useState<string>("7");
@@ -37,7 +35,6 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // --- FETCH CHART DATA ---
   useEffect(() => {
     let ignore = false;
     const fetchChartData = async () => {
@@ -61,7 +58,6 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
     return () => { ignore = true; };
   }, [isOpen, sensor, chartDays]);
 
-  // --- FETCH TABLE DATA ---
   useEffect(() => {
     let ignore = false;
     const fetchTableData = async () => {
@@ -82,12 +78,10 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
     return () => { ignore = true; };
   }, [isOpen, sensor, tableDays]);
 
-  // --- RESET PAGE ON FILTER CHANGE ---
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, itemsPerPage, sortKey, sortOrder, tableDays, sensor]);
 
-  // --- TABLE MEMOIZATION & PAGINATION LOGIC ---
   const processedTableData = useMemo(() => {
     let data = [...tableData];
     if (searchTerm) {
@@ -118,21 +112,25 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
   if (!sensor) return null;
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-[450px] sm:w-[600px] p-0 flex flex-col bg-background overflow-hidden border-l">
-        
-        {/* Header */}
-        <SheetHeader className="p-6 border-b bg-muted/20 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${sensor.markerColor === 'red' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
-              {getSensorIcon(sensor.type, 20, 'currentColor')}
-            </div>
-            <SheetTitle className="text-xl tracking-tight">{sensor.name}</SheetTitle>
+    <div 
+      className={`absolute top-0 right-0 bottom-0 w-[420px] bg-[#111114] border-l border-gray-800 flex flex-col shadow-2xl z-40 transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+    >
+      <div className="flex items-center justify-between p-5 border-b border-gray-800 shrink-0 bg-[#111114]">
+        <div className="flex items-center gap-3">
+          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${sensor.markerColor === 'red' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+            {getSensorIcon(sensor.type, 18, 'currentColor')}
           </div>
-        </SheetHeader>
+          <h2 className="text-lg font-bold text-white tracking-wide m-0">Selected Sensor</h2>
+        </div>
+        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto pb-6">
+      {/* MAGIC FIX: min-h-0 forces flexbox to respect the container height and allow scrolling */}
+      <ScrollArea className="flex-1 min-h-0 w-full">
+        {/* MAGIC FIX: overflow-hidden ensures child contents don't stretch the width */}
+        <div className="flex flex-col gap-6 p-5 w-full overflow-hidden">
           <SensorDetailsSection sensor={sensor} isOpen={isDetailsOpen} onToggle={setIsDetailsOpen} />
           
           <SensorChartSection 
@@ -152,7 +150,7 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
             totalPages={totalPages} itemsPerPage={itemsPerPage} setItemsPerPage={setItemsPerPage} 
           />
         </div>
-      </SheetContent>
-    </Sheet>
+      </ScrollArea>
+    </div>
   );
 };

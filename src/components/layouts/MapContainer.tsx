@@ -6,53 +6,47 @@ import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import Graphic from "@arcgis/core/Graphic";
 import Point from "@arcgis/core/geometry/Point";
 import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol";
-
+import type { Building, Sensor } from "shared/types";
 import { SensorTooltip } from "../sensor/SensorTooltip";
-import type { Sensor } from "../../../shared/types";
-import { createSensorMarkerURI } from "../../utils/svgIconGenerator";
-import BuildingSceneLayer from "@arcgis/core/layers/BuildingSceneLayer";
+import { createSensorMarkerURI } from "@/utils/svgIconGenerator";
+import Layer from "@arcgis/core/layers/Layer";
 
+//
 interface MapContainerProps {
+  buildings: Building[];
+  buildingFilters: Record<string, boolean>;
+  focusedBuilding: Building | null;
   sensors: Sensor[];
   onSensorClick: (sensor: Sensor) => void;
   isGlobalVisible: boolean;
   typeFilters: Record<string, boolean>;
   sensorFilters: Record<string, boolean>;
   alertingSensorIds: string[];
-  showBuildingModel: boolean;
   focusedSensor: Sensor | null;
 }
 
-// --- ESRI ADMIN BUILDING REAL-WORLD BOUNDARIES ---
-const BUILDING_BOUNDS = {
-  lonMin: -117.196,
-  lonMax: -117.1953,
-  latMin: 34.0563,
-  latMax: 34.0566,
-  height: 15,
-  groundElevation: 400,
-};
-
 export const MapContainer: React.FC<MapContainerProps> = ({
+  buildings,
+  buildingFilters,
+  focusedBuilding,
   sensors,
   onSensorClick,
   isGlobalVisible,
   typeFilters,
   sensorFilters,
   alertingSensorIds,
-  showBuildingModel,
   focusedSensor,
 }) => {
   const mapDiv = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<SceneView | null>(null);
+
+  const [mapInstance, setMapInstance] = useState<Map | null>(null);
+  const [viewInstance, setViewInstance] = useState<SceneView | null>(null);
   const graphicsLayerRef = useRef<GraphicsLayer | null>(null);
-  const buildingLayerRef = useRef<BuildingSceneLayer | null>(null);
 
   const sensorsRef = useRef<Sensor[]>(sensors);
   useEffect(() => {
     sensorsRef.current = sensors;
   }, [sensors]);
-
   const onSensorClickRef = useRef(onSensorClick);
   useEffect(() => {
     onSensorClickRef.current = onSensorClick;
@@ -65,72 +59,52 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     sensor: Sensor | null;
   }>({ visible: false, x: 0, y: 0, sensor: null });
 
-  // --- INITIALIZE MAP & REALISTIC MULTI-TIER BUILDING ---
+  // --- 1. INITIALIZE BLANK BASEMAP ONLY ONCE ---
   useEffect(() => {
     if (!mapDiv.current) return;
 
-    // Optional: If you ever see map loading warnings in your console, add your free ArcGIS API Key here
-    // esriConfig.apiKey = "YOUR_API_KEY";
-
-    // FIX 1: 'satellite' is the correct basemap string
     const map = new Map({ basemap: "satellite", ground: "world-elevation" });
-    // LOAD THE FREE ESRI BUILDING SCENE LAYER
-    const buildingLayer = new BuildingSceneLayer({
-      url: "https://tiles.arcgis.com/tiles/V6ZHFr6zdgNZuVG0/arcgis/rest/services/BSL__4326__US_Redlands__EsriAdminBldg_PublicDemo/SceneServer",
-      title: "Esri Administration Building",
-    });
-    map.add(buildingLayer);
-    buildingLayerRef.current = buildingLayer;
-
-    // LAYER FOR SENSORS (absolute-height locks them to exact Z meters)
-    const graphicsLayer = new GraphicsLayer({
-      elevationInfo: { mode: "absolute-height" },
-    });
-    map.add(graphicsLayer);
-    graphicsLayerRef.current = graphicsLayer;
-
     const view = new SceneView({
       container: mapDiv.current,
       map: map,
-      camera: { position: { x: -117.1956, y: 34.055, z: 460 }, tilt: 65 },
       environment: { lighting: { type: "virtual" } },
     });
-    viewRef.current = view;
 
-    // FIX 2: Wait for the Building Layer to load, then auto-fly the camera to it
-    buildingLayer.when(() => {
-      if (buildingLayer.fullExtent) {
-        view.goTo(
-          {
-            target: buildingLayer.fullExtent,
-            tilt: 65,
-          },
-          { duration: 2000, easing: "cubic-in-out" },
-        ); // FIX: Updated to the new easing string!
-      }
+    const gLayer = new GraphicsLayer({
+      elevationInfo: { mode: "absolute-height" },
     });
+    map.add(gLayer);
+    graphicsLayerRef.current = gLayer;
+
+    // Wait for the ArcGIS SceneView to fully load before telling React it exists!
+    view.when(() => {
+      setMapInstance(map);
+      setViewInstance(view);
+    });
+
+    view.ui.move(["zoom", "compass", "navigation-toggle"], "bottom-left");
+    view.ui.remove("attribution");
 
     view.on("pointer-move", (event) => {
       view.hitTest(event).then((response) => {
-        const topHit = response.results.length > 0 ? response.results[0] : null;
-
-        if (topHit && topHit.type === "graphic") {
-          const hitResult = topHit as { type: "graphic"; graphic: Graphic };
-          if (hitResult.graphic.layer === graphicsLayerRef.current) {
-            const hoveredSensorId = hitResult.graphic.attributes.id;
-            const hoveredSensor = sensorsRef.current.find(
-              (s) => s.id === hoveredSensorId,
-            );
-
-            if (hoveredSensor) {
-              setTooltipState({
-                visible: true,
-                x: event.x,
-                y: event.y - 10,
-                sensor: hoveredSensor,
-              });
-              return;
-            }
+        const topHit = response.results[0];
+        if (
+          topHit &&
+          topHit.type === "graphic" &&
+          topHit.graphic.layer === graphicsLayerRef.current
+        ) {
+          const hoveredSensorId = topHit.graphic.attributes.id;
+          const hoveredSensor = sensorsRef.current.find(
+            (s) => s.id === hoveredSensorId,
+          );
+          if (hoveredSensor) {
+            setTooltipState({
+              visible: true,
+              x: event.x,
+              y: event.y - 10,
+              sensor: hoveredSensor,
+            });
+            return;
           }
         }
         setTooltipState((prev) =>
@@ -141,32 +115,125 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     view.on("click", (event) => {
       view.hitTest(event).then((response) => {
-        const topHit = response.results.length > 0 ? response.results[0] : null;
-
-        if (topHit && topHit.type === "graphic") {
-          const hitResult = topHit as { type: "graphic"; graphic: Graphic };
-          if (hitResult.graphic.layer === graphicsLayerRef.current) {
-            const clickedSensorId = hitResult.graphic.attributes.id;
-            const clickedSensor = sensorsRef.current.find(
-              (s) => s.id === clickedSensorId,
-            );
-            if (clickedSensor) onSensorClickRef.current(clickedSensor);
-          }
+        const topHit = response.results[0];
+        if (
+          topHit &&
+          topHit.type === "graphic" &&
+          topHit.graphic.layer === graphicsLayerRef.current
+        ) {
+          const clickedSensorId = topHit.graphic.attributes.id;
+          const clickedSensor = sensorsRef.current.find(
+            (s) => s.id === clickedSensorId,
+          );
+          if (clickedSensor) onSensorClickRef.current(clickedSensor);
         }
       });
     });
 
     return () => {
-      if (viewRef.current) viewRef.current.destroy();
+      view.destroy();
     };
   }, []);
 
+  // --- 2. DYNAMICALLY MOUNT/UNMOUNT BUILDING LAYERS ---
   useEffect(() => {
-    if (buildingLayerRef.current)
-      buildingLayerRef.current.visible = showBuildingModel;
-  }, [showBuildingModel]);
+    if (!mapInstance) return;
 
-  // --- DYNAMIC SENSOR PLACEMENT ---
+    buildings.forEach((bldg) => {
+      const layer = mapInstance.findLayerById(bldg.id) as Layer;
+      const isVisible = buildingFilters[bldg.id] ?? true;
+
+      // If the layer isn't on the map yet, let ArcGIS auto-detect and add it!
+      if (!layer) {
+        // 🌟 MAGIC BULLET: This auto-detects BIM vs 3DObject vs Mesh perfectly
+        Layer.fromArcGISServerUrl({
+          url: bldg.modelUrl,
+          properties: {
+            id: bldg.id,
+            title: bldg.name,
+            visible: isVisible,
+          },
+        })
+          .then((autoDetectedLayer) => {
+            mapInstance.add(autoDetectedLayer);
+            console.log(
+              `✅ Successfully mounted ${bldg.name} as ${autoDetectedLayer.type}`,
+            );
+          })
+          .catch((err) => {
+            console.error(`❌ Failed to mount ${bldg.name}:`, err);
+          });
+      } else {
+        // Toggle visibility if it already exists
+        layer.visible = isVisible;
+      }
+    });
+  }, [buildings, buildingFilters, mapInstance]);
+
+  // --- 3. FLY CAMERA TO FOCUSED BUILDING ---
+  useEffect(() => {
+    if (!focusedBuilding || !viewInstance || !viewInstance.map) return;
+    // Helper function: Tell ArcGIS to calculate the perfect flight to fit the building's 3D bounding box
+    const performFlight = (layer: Layer) => {
+      layer.when(() => {
+        if (!layer.fullExtent) {
+          console.warn(`Could not fly to ${focusedBuilding.name}: fullExtent is null.`);
+          return;
+        }
+
+        viewInstance
+          .goTo(
+            {
+              target: layer.fullExtent, // 🌟 MAGIC: This contains the true elevation AND the building dimensions!
+              tilt: 70, // A nice architectural viewing angle
+              heading: 0, // Face North
+            },
+            {
+              duration: 3500,
+              easing: "cubic-in-out",
+            },
+          )
+          .catch((err: Error) => {
+            if (err.name !== "AbortError") console.error("Flight error:", err);
+          });
+      });
+    };
+
+    const existingLayer = viewInstance.map.findLayerById(focusedBuilding.id);
+
+    if (existingLayer) {
+      // If the layer is already on the map, fly to it immediately
+      performFlight(existingLayer);
+    } else {
+      // If the layer is still being auto-detected and downloaded from the server, wait for it!
+      const handle = viewInstance.map.layers.on(
+        "after-add",
+        (event: { item: Layer }) => {
+          if (event.item.id === focusedBuilding.id) {
+            performFlight(event.item);
+            handle.remove();
+          }
+        },
+      );
+    }
+  }, [focusedBuilding, viewInstance]);
+
+  // --- 4. FLY CAMERA TO FOCUSED SENSOR ---
+  useEffect(() => {
+    if (focusedSensor && viewInstance && graphicsLayerRef.current) {
+      const graphic = graphicsLayerRef.current.graphics.find(
+        (g) => g.attributes.id === focusedSensor.id,
+      );
+      if (graphic && graphic.geometry) {
+        viewInstance.goTo(
+          { target: graphic.geometry, tilt: 75, scale: 400 },
+          { duration: 1500, easing: "cubic-in-out" },
+        );
+      }
+    }
+  }, [focusedSensor, viewInstance]);
+
+  // --- 5. RENDER SENSORS GLOBALLY ---
   useEffect(() => {
     if (!graphicsLayerRef.current || sensors.length === 0) return;
     const layer = graphicsLayerRef.current;
@@ -174,90 +241,109 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     sensors.forEach((sensor) => {
       const isAlerting = alertingSensorIds.includes(sensor.id);
+
+      const parentBuildingId = buildings.find((b) =>
+        sensor.id.startsWith(`b${buildings.indexOf(b)}`),
+      )?.id;
+      const isParentVisible = parentBuildingId
+        ? (buildingFilters[parentBuildingId] ?? true)
+        : true;
+
       const isNormallyVisible =
+        isParentVisible &&
         isGlobalVisible &&
         typeFilters[sensor.type] !== false &&
         sensorFilters[sensor.id] !== false;
       const isGraphicVisible = isNormallyVisible || isAlerting;
-
-      const svgUrl = createSensorMarkerURI(
-        sensor.type,
-        isAlerting,
-        isNormallyVisible,
-      );
-
       const isFocused = focusedSensor?.id === sensor.id;
-      const symbol = new PictureMarkerSymbol({ 
-        url: svgUrl, 
-        width: isFocused ? "54px" : "36px", 
-        height: isFocused ? "54px" : "36px" 
-      });
-
-      // --- SMART COORDINATE CONVERTER ---
-      let lon = Number(sensor.position.x);
-      let lat = Number(sensor.position.y);
-      let elevation = Number(sensor.position.z);
-
-      // If backend sends 0-1 values OR the old Vietnam coordinates (> 100),
-      // forcefully map them to the California building automatically.
-      if ((lon >= 0 && lon <= 1) || lon > 100) {
-        // We use Math.random() here just to scatter them if they are stacked on top of each other
-        lon =
-          BUILDING_BOUNDS.lonMin +
-          Math.random() * (BUILDING_BOUNDS.lonMax - BUILDING_BOUNDS.lonMin);
-        lat =
-          BUILDING_BOUNDS.latMin +
-          Math.random() * (BUILDING_BOUNDS.latMax - BUILDING_BOUNDS.latMin);
-
-        // Scatter elevation between ground floor and roof
-        elevation =
-          BUILDING_BOUNDS.groundElevation +
-          Math.random() * BUILDING_BOUNDS.height;
-      }
-
-      const point = new Point({ longitude: lon, latitude: lat, z: elevation });
 
       const existingGraphic = layer.graphics.find(
         (g) => g.attributes.id === sensor.id,
       );
 
       if (existingGraphic) {
-        existingGraphic.symbol = symbol;
-        existingGraphic.geometry = point; // Update geometry in case it moved
-        existingGraphic.visible = isGraphicVisible;
+        // --- 1. VISIBILITY CHECK ---
+        if (existingGraphic.visible !== isGraphicVisible) {
+          existingGraphic.visible = isGraphicVisible;
+        }
+
+        // --- 2. DIRTY CHECK FOR SYMBOL RE-RENDERS ---
+        // Only generate a new SVG symbol if the state actually changed!
+        if (
+          existingGraphic.attributes.isAlerting !== isAlerting ||
+          existingGraphic.attributes.isNormallyVisible !== isNormallyVisible ||
+          existingGraphic.attributes.isFocused !== isFocused
+        ) {
+          const svgUrl = createSensorMarkerURI(
+            sensor.type,
+            isAlerting,
+            isNormallyVisible,
+          );
+          existingGraphic.symbol = new PictureMarkerSymbol({
+            url: svgUrl,
+            width: isFocused ? "54px" : "36px",
+            height: isFocused ? "54px" : "36px",
+          });
+
+          // Save the new state to attributes so we don't redraw it next time
+          existingGraphic.attributes.isAlerting = isAlerting;
+          existingGraphic.attributes.isNormallyVisible = isNormallyVisible;
+          existingGraphic.attributes.isFocused = isFocused;
+        }
+
+        // 🛑 WE NEVER OVERWRITE existingGraphic.geometry HERE!
+        // Overwriting geometry causes the 3D flicker. Since buildings don't move, we leave it alone.
       } else {
-        const graphic = new Graphic({
-          geometry: point,
-          symbol: symbol,
-          attributes: { id: sensor.id },
-          visible: isGraphicVisible,
+        // --- 3. CREATE NEW SENSOR ---
+        const svgUrl = createSensorMarkerURI(
+          sensor.type,
+          isAlerting,
+          isNormallyVisible,
+        );
+        const symbol = new PictureMarkerSymbol({
+          url: svgUrl,
+          width: isFocused ? "54px" : "36px",
+          height: isFocused ? "54px" : "36px",
         });
 
-        layer.add(graphic);
+        const point = new Point({
+          longitude: Number(sensor.position.x),
+          latitude: Number(sensor.position.y),
+          z: Number(sensor.position.z),
+        });
+
+        layer.add(
+          new Graphic({
+            geometry: point,
+            symbol: symbol,
+            attributes: {
+              id: sensor.id,
+              isAlerting, // Store state on creation
+              isNormallyVisible,
+              isFocused,
+            },
+            visible: isGraphicVisible,
+          }),
+        );
       }
     });
 
+    // Cleanup old sensors
     const graphicsToRemove = layer.graphics.filter(
       (g) => !currentSensorIds.has(g.attributes.id),
     );
     if (graphicsToRemove.length > 0)
       layer.removeMany(graphicsToRemove.toArray());
-  }, [sensors, isGlobalVisible, typeFilters, sensorFilters, alertingSensorIds]);
-
-  useEffect(() => {
-    if (focusedSensor && viewRef.current && graphicsLayerRef.current) {
-      // Find the existing graphic on the map so we don't have to recalculate its coordinates
-      const graphic = graphicsLayerRef.current.graphics.find(g => g.attributes.id === focusedSensor.id);
-      
-      if (graphic && graphic.geometry) {
-        viewRef.current.goTo({
-          target: graphic.geometry,
-          tilt: 75,
-          scale: 400 // Zoom in extremely close
-        }, { duration: 1500, easing: "cubic-in-out" });
-      }
-    }
-  }, [focusedSensor]);
+  }, [
+    sensors,
+    isGlobalVisible,
+    typeFilters,
+    sensorFilters,
+    alertingSensorIds,
+    buildingFilters,
+    buildings,
+    focusedSensor,
+  ]);
   return (
     <div className="relative w-full h-full">
       <div ref={mapDiv} className="w-full h-full bg-[#121212]" />

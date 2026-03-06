@@ -1,150 +1,118 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Sensor } from '../../../shared/types';
-import { useWebSocket } from '../../hooks/useWebSocket';
 
-// Child Components
 import { MapContainer } from './MapContainer';
-import { SensorDrawer } from '../sensor/SensorDrawer'; 
-import { GlobalDashboardModal } from './GlobalDashboardModal';
-import { MapControls } from '../map/MapControls';
-import { SensorFilterMenu } from '../sensor/SensorFilterMenu';
+
+import type { Building, Sensor } from 'shared/types';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { SensorDrawer } from '../sensor/SensorDrawer';
+import { TopSearchBar } from '../TopSearchBar';
+
 
 export const BuildingMapRenderer: React.FC = () => {
   const [sensors, setSensors] = useState<Sensor[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
   const { alerts } = useWebSocket();
   
-  // Visibility States
   const [selectedSensor, setSelectedSensor] = useState<Sensor | null>(null);
   const [focusedSensor, setFocusedSensor] = useState<Sensor | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [showBuildingModel, setShowBuildingModel] = useState(true);
-  const [isGlobalVisible, setIsGlobalVisible] = useState(true);
-  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [focusedBuilding, setFocusedBuilding] = useState<Building | null>(null);
   
-  // Filter States
-  const [typeFilters, setTypeFilters] = useState<Record<string, boolean>>({});
   const [sensorFilters, setSensorFilters] = useState<Record<string, boolean>>({});
-  const [expandedTypes, setExpandedTypes] = useState<Record<string, boolean>>({});
+  const [buildingFilters, setBuildingFilters] = useState<Record<string, boolean>>({});
 
+  // 1. Initial Load: Fetch Buildings
   useEffect(() => {
-    fetch('http://localhost:3001/api/sensors?limit=1000')
-      .then((res) => res.json())
-      .then((json) => {
-        const fetchedSensors: Sensor[] = json.sensors || json;
-        setSensors(fetchedSensors);
-        
-        const initialTypeFilters: Record<string, boolean> = {};
-        const initialSensorFilters: Record<string, boolean> = {};
-        fetchedSensors.forEach(s => {
-          initialTypeFilters[s.type] = true;
-          initialSensorFilters[s.id] = true;
-        });
-        setTypeFilters(initialTypeFilters);
-        setSensorFilters(initialSensorFilters);
+    fetch('http://localhost:3001/api/buildings')
+      .then(res => res.json())
+      .then(json => {
+        if (json.buildings) {
+          setBuildings(json.buildings);
+          // Default: ALL buildings visible
+          const initialBldgFilters: Record<string, boolean> = {};
+          json.buildings.forEach((b: Building) => { initialBldgFilters[b.id] = true; });
+          setBuildingFilters(initialBldgFilters);
+          if (json.buildings.length > 0) setFocusedBuilding(json.buildings[0]);
+        }
       })
-      .catch((err) => console.error('Failed to fetch sensors:', err));
+      .catch(err => console.error('Failed to fetch buildings:', err));
   }, []);
 
-  const sensorsByType = useMemo(() => {
-    const grouped: Record<string, Sensor[]> = {};
-    sensors.forEach(s => {
-      if (!grouped[s.type]) grouped[s.type] = [];
-      grouped[s.type].push(s);
-    });
-    return grouped;
-  }, [sensors]);
+  // 2. Hierarchical Fetch: Get sensors ONLY for visible buildings!
+  useEffect(() => {
+    // Extract IDs of buildings that are currently toggled "ON"
+    const activeBuildingIds = Object.keys(buildingFilters).filter(id => buildingFilters[id]);
+    
+    // Simply call the API! If activeBuildingIds is empty, the backend safely returns { sensors: [] }
+    fetch(`http://localhost:3001/api/sensors/by-buildings?ids=${activeBuildingIds.join(',')}`)
+      .then(res => res.json())
+      .then(json => {
+        const fetchedSensors: Sensor[] = json.sensors || [];
+        setSensors(fetchedSensors); // This happens asynchronously now!
+        
+        // Reset sensor visibility so they are all ON by default when a new building loads
+        const initialSensorFilters: Record<string, boolean> = {};
+        fetchedSensors.forEach(s => { initialSensorFilters[s.id] = true; });
+        setSensorFilters(initialSensorFilters);
+      })
+      .catch(err => console.error('Failed to fetch sensors by building:', err));
+  }, [buildingFilters]); // <-- Re-runs whenever the user clicks "Apply" on the Buildings menu
 
   const alertingSensorIds = useMemo(() => alerts.map(a => a.sensorId), [alerts]);
 
-  const handleSensorClick = (sensor: Sensor) => {
-    setSelectedSensor(sensor);
-    setIsDrawerOpen(true);
-    setFocusedSensor(sensor); 
-  };
+  // const sensorsByType = useMemo(() => {
+  //   const grouped: Record<string, Sensor[]> = {};
+  //   sensors.forEach(s => {
+  //     if (!grouped[s.type]) grouped[s.type] = [];
+  //     grouped[s.type].push(s);
+  //   });
+  //   return grouped;
+  // }, [sensors]);
 
-  const handleSensorLocate = (sensor: Sensor) => {
-    setFocusedSensor(sensor);
-    setSelectedSensor(sensor);
-    setIsDrawerOpen(true); 
-  };
+  // const handleSensorClick = (sensor: Sensor) => {
+  //   setSelectedSensor(sensor);
+  //   setIsDrawerOpen(true);
+  //   setFocusedSensor(sensor);
+  // };
 
-  const toggleTypeFilter = (type: string) => {
-    const isNowVisible = !typeFilters[type];
-    setTypeFilters(prev => ({ ...prev, [type]: isNowVisible }));
-    setSensorFilters(prev => {
-      const updated = { ...prev };
-      sensorsByType[type].forEach(s => { updated[s.id] = isNowVisible; });
-      return updated;
-    });
-  };
+  // const handleSensorLocate = (sensor: Sensor) => {
+  //   setFocusedSensor(sensor);
+  //   setSelectedSensor(sensor);
+  //   setIsDrawerOpen(true);
+  // };
 
-  const toggleSensorFilter = (id: string) => {
-    setSensorFilters(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const toggleExpandType = (type: string) => {
-    setExpandedTypes(prev => ({ ...prev, [type]: !prev[type] }));
-  };
-
-  const handleToggleGlobalVisibility = () => {
-    const newVisibility = !isGlobalVisible;
-    setIsGlobalVisible(newVisibility);
-
-    if (newVisibility) {
-      const resetTypeFilters: Record<string, boolean> = {};
-      const resetSensorFilters: Record<string, boolean> = {};
-      sensors.forEach(s => {
-        resetTypeFilters[s.type] = true;
-        resetSensorFilters[s.id] = true;
-      });
-      setTypeFilters(resetTypeFilters);
-      setSensorFilters(resetSensorFilters);
-    }
-  };
+  // const handleToggleGlobalVisibility = () => {
+  //   setIsGlobalVisible(!isGlobalVisible);
+  // };
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-background">
       <MapContainer 
+        buildings={buildings}               
+        buildingFilters={buildingFilters}   
+        focusedBuilding={focusedBuilding}   
         sensors={sensors} 
-        onSensorClick={handleSensorClick}
-        isGlobalVisible={isGlobalVisible}
-        typeFilters={typeFilters}
+        onSensorClick={(s) => { setSelectedSensor(s); setFocusedSensor(s); }}
+        isGlobalVisible={true} // Replaced by our new hierarchical logic
+        typeFilters={{}}       // Handled directly via sensorFilters now
         sensorFilters={sensorFilters}
         alertingSensorIds={alertingSensorIds}
-        showBuildingModel={showBuildingModel}
         focusedSensor={focusedSensor}
       />
       
-      {/* Extracted UI Controls Overlay */}
-      <div className="absolute top-6 left-6 z-10 flex flex-col gap-3">
-        <MapControls 
-          onOpenDashboard={() => setIsDashboardOpen(true)}
-          showBuildingModel={showBuildingModel}
-          onToggleBuildingModel={() => setShowBuildingModel(!showBuildingModel)}
-          isGlobalVisible={isGlobalVisible}
-          onToggleGlobalVisibility={handleToggleGlobalVisibility}
-          isFilterMenuOpen={isFilterMenuOpen}
-          onToggleFilterMenu={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-        />
+      {/* THE NEW FLOATING UI */}
+      <TopSearchBar 
+        buildings={buildings}
+        sensors={sensors}
+        buildingFilters={buildingFilters}
+        sensorFilters={sensorFilters}
+        onApplyBuildingFilters={setBuildingFilters}
+        onApplySensorFilters={setSensorFilters}
+        onBuildingLocate={setFocusedBuilding}
+        onSensorLocate={(s) => { setSelectedSensor(s); setFocusedSensor(s); }}
+      />
 
-        {isFilterMenuOpen && (
-          <SensorFilterMenu 
-            sensorsByType={sensorsByType}
-            alertingSensorIds={alertingSensorIds}
-            typeFilters={typeFilters}
-            toggleTypeFilter={toggleTypeFilter}
-            expandedTypes={expandedTypes}
-            toggleExpandType={toggleExpandType}
-            sensorFilters={sensorFilters}
-            toggleSensorFilter={toggleSensorFilter}
-            onSensorLocate={handleSensorLocate}
-          />
-        )}
-      </div>
-
-      <SensorDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} sensor={selectedSensor} />
-      <GlobalDashboardModal isOpen={isDashboardOpen} onClose={() => setIsDashboardOpen(false)} sensors={sensors} />
+      {/* KEEP DRAWER FOR SENSOR DETAILS */}
+      <SensorDrawer isOpen={!!selectedSensor} onClose={() => setSelectedSensor(null)} sensor={selectedSensor} />
     </div>
   );
 };
