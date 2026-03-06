@@ -34,15 +34,6 @@ interface ServerBuilding {
 }
 
 // --- 1. DYNAMIC BUILDING INVENTORY ---
-// const ACTIVE_BUILDING: ServerBuilding = {
-//   id: "bldg_esri_admin",
-//   name: "Esri Administration Building",
-//   modelUrl: "https://tiles.arcgis.com/tiles/V6ZHFr6zdgNZuVG0/arcgis/rest/services/BSL__4326__US_Redlands__EsriAdminBldg_PublicDemo/SceneServer",
-//   bounds: null,
-//   defaultCamera: null
-// };
-
-// THE NEW MULTI-TENANT SINGLE-BUILDING PORTFOLIO!
 const ACTIVE_BUILDINGS: ServerBuilding[] = [
   {
     // 1. (STILL WORKING) Esri Admin Building (True BIM)
@@ -69,36 +60,7 @@ function mercatorToLatLon(x: number, y: number) {
   return { lon, lat };
 }
 
-// --- 2. BACKEND COORDINATE GENERATOR ---
-function generateAbsoluteCoordinates(location: string, zMinRatio: number, zMaxRatio: number, sensorId: string, bounds: BuildingBounds) {
-  const hash = sensorId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const randomX = (hash % 100) / 100;
-  const randomY = ((hash * 7) % 100) / 100;
-  const randomZ = ((hash * 13) % 100) / 100;
-
-  let lon, lat;
-  const zMin = zMinRatio * bounds.height;
-  const zMax = zMaxRatio * bounds.height;
-  const absoluteZ = bounds.groundElevation + (zMin + randomZ * (zMax - zMin));
-
-  if (location.includes('Roof') || location.includes('Dome')) {
-    lon = bounds.lonMin + (bounds.lonMax - bounds.lonMin) * (0.3 + randomX * 0.4);
-    lat = bounds.latMin + (bounds.latMax - bounds.latMin) * (0.3 + randomY * 0.4);
-  } else if (location.includes('Exterior Wall')) {
-    const edge = hash % 4; 
-    if (edge === 0) { lat = bounds.latMax; lon = bounds.lonMin + randomX * (bounds.lonMax - bounds.lonMin); }
-    else if (edge === 1) { lat = bounds.latMin; lon = bounds.lonMin + randomX * (bounds.lonMax - bounds.lonMin); }
-    else if (edge === 2) { lon = bounds.lonMax; lat = bounds.latMin + randomY * (bounds.latMax - bounds.latMin); }
-    else { lon = bounds.lonMin; lat = bounds.latMin + randomY * (bounds.latMax - bounds.latMin); }
-  } else {
-    lon = bounds.lonMin + (bounds.lonMax - bounds.lonMin) * (0.1 + randomX * 0.8);
-    lat = bounds.latMin + (bounds.latMax - bounds.latMin) * (0.1 + randomY * 0.8);
-  }
-
-  return { x: lon.toFixed(6), y: lat.toFixed(6), z: absoluteZ.toFixed(2) };
-}
-
-// --- 3. SENSOR INVENTORY & REALISTIC MAPPING ---
+// --- 2. SENSOR INVENTORY & REALISTIC MAPPING ---
 const SENSOR_TYPES: Array<{
   type: string;
   paradigm: DataParadigm;
@@ -128,36 +90,125 @@ const SENSOR_TYPES: Array<{
   { type: 'EpsilonGraph', paradigm: 'rest', unit: 'µε', base: 50, manufacturer: 'Nerve-Sensors', locations: ['Ceiling', 'Dome Roof'], zRange: [0.8, 0.95] },
 ];
 
+// --- 3. GEOMETRIC SENSOR PLACEMENT GENERATOR ---
 function buildSensors() {
   sensors = [];
-  ACTIVE_BUILDINGS.forEach((building, bIndex) => {
-    const buildingBounds = building.bounds;
-    if (!buildingBounds) return;
+  let sId = 1;
 
-    SENSOR_TYPES.forEach(profile => {
-      const count = profile.exactCount !== undefined ? profile.exactCount : Math.floor(Math.random() * 4) + 3; 
-      for (let i = 1; i <= count; i++) {
-        const locationName = profile.locations[Math.floor(Math.random() * profile.locations.length)];
-        const sensorId = `b${bIndex}_${profile.type.toLowerCase()}_${i}`;
-        const coords = generateAbsoluteCoordinates(locationName, profile.zRange[0], profile.zRange[1], sensorId, buildingBounds);
+  ACTIVE_BUILDINGS.forEach((bldg, bIndex) => {
+    const bounds = bldg.bounds;
+    if (!bounds) return;
 
-        sensors.push({
-          id: sensorId,
-          buildingId: building.id,
-          name: `${profile.type} (${locationName}${count > 1 ? ' ' + i : ''})`,
-          location: locationName,
-          type: profile.type,
-          manufacturer: profile.manufacturer,
-          paradigm: profile.paradigm,
-          status: Math.random() > 0.85 ? 'Warning' : 'Healthy',
-          unit: profile.unit,
-          markerColor: profile.paradigm === 'webhook' ? 'red' : 'darkGrey',
-          position: coords 
-        });
+    // Calculate exact architectural boundaries from the 3D model data
+    // minX (West), maxX (East), minY (South), maxY (North)
+    const minX = bounds.lonMin;
+    const maxX = bounds.lonMax;
+    const midX = (minX + maxX) / 2;
+    
+    const minY = bounds.latMin;
+    const maxY = bounds.latMax;
+    const midY = (minY + maxY) / 2;
+    
+    const zGnd = bounds.groundElevation;
+    const zRoof = bounds.groundElevation + bounds.height;
+    const zMid = bounds.groundElevation + (bounds.height / 2);
+
+    // Factory helper to safely stamp out sensors at exact structural coordinates
+    const create = (type: string, name: string, location: string, lon: number, lat: number, z: number) => {
+      const profile = SENSOR_TYPES.find(p => p.type === type);
+      
+      if (!profile) {
+        console.warn(`⚠️ Skipped: Sensor type '${type}' not found in SENSOR_TYPES.`);
+        return;
       }
-    });
+
+      sensors.push({
+        id: `b${bIndex}_s${sId++}`,
+        buildingId: bldg.id,
+        name: `${type} (${name})`,
+        location,
+        type: profile.type,
+        manufacturer: profile.manufacturer || 'BuildSense IoT',
+        paradigm: profile.paradigm,
+        status: Math.random() > 0.85 ? 'Warning' : 'Healthy',
+        unit: profile.unit,
+        markerColor: profile.paradigm === 'webhook' ? 'red' : 'darkGrey',
+        position: { x: lon.toFixed(6), y: lat.toFixed(6), z: z.toFixed(2) }
+      });
+    };
+
+    // 🌬️ 4 WIND SENSORS (Glued precisely to the 4 Top-Corners of the Roof)
+    create('Wind', 'NW Anemometer', 'North-West Roof Corner', minX, maxY, zRoof + 0.5);
+    create('Wind', 'NE Anemometer', 'North-East Roof Corner', maxX, maxY, zRoof + 0.5);
+    create('Wind', 'SW Anemometer', 'South-West Roof Corner', minX, minY, zRoof + 0.5);
+    create('Wind', 'SE Anemometer', 'South-East Roof Corner', maxX, minY, zRoof + 0.5);
+
+    // 🌧️ 1 RAIN SENSOR (Dead-center of the roof)
+    create('Rain', 'Main Gauge', 'Center Roof', midX, midY, zRoof + 1.0);
+
+    // 🏗️ 2 CRACK DETECTION (Glued to the dead-center of the outer North and South walls)
+    create('SmartCrackDetection', 'North Wall Scanner', 'North Exterior Wall', midX, maxY, zMid);
+    create('SmartCrackDetection', 'South Wall Scanner', 'South Exterior Wall', midX, minY, zMid);
+
+    // 🏗️ 2 3D SENSORS / DISPLACEMENT (Anchored to ground-level outer pillars)
+    create('3DSensor', 'NW Pillar Node', 'NW Foundation Pillar', minX, maxY, zGnd + 0.5);
+    create('3DSensor', 'SE Pillar Node', 'SE Foundation Pillar', maxX, minY, zGnd + 0.5);
+
+    // 🏗️ 2 PDS SENSORS (Floor base settlement monitoring)
+    create('PDS', 'Center Foundation', 'Ground Floor Base', midX, midY, zGnd + 0.1);
+    create('PDS', 'East Wing Foundation', 'East Ground Floor', maxX, midY, zGnd + 0.1);
+
+    // 🏗️ 2 EPSILON PEAK (Strain gauges on upper load-bearing roof beams)
+    // Placed 25% inward from the East/West walls just below the roof
+    create('EpsilonPeak', 'West Roof Beam', 'Load-bearing Beam (West)', minX + (maxX - minX) * 0.25, midY, zRoof - 1.0);
+    create('EpsilonPeak', 'East Roof Beam', 'Load-bearing Beam (East)', maxX - (maxX - minX) * 0.25, midY, zRoof - 1.0);
+
+    // 🏗️ 2 EPSILON SENSORS (Attached to technical shafts on East/West walls)
+    create('EpsilonSensor', 'West Tech Shaft', 'Technical Shaft (West Wall)', minX, midY, zGnd + 3.0);
+    create('EpsilonSensor', 'East Water Pipe', 'Main Water Pipe (East Wall)', maxX, midY, zGnd + 2.0);
+
+    // 🏗️ 2 EPSILON FLAT (Mid-level floor slabs)
+    create('EpsilonFlat', 'Mid-Floor Center', 'Floor Slab Center', midX, midY, zMid);
+    create('EpsilonFlat', 'Mid-Floor Edge', 'Floor Slab Edge', maxX, maxY, zMid);
+
+    // 🏗️ 2 EPSILON REBAR (Embedded deep in foundation pillars)
+    create('EpsilonRebar', 'SW Pillar Rebar', 'SW Pillar Core', minX, minY, zGnd + 1.0);
+    create('EpsilonRebar', 'NE Pillar Rebar', 'NE Pillar Core', maxX, maxY, zGnd + 1.0);
+
+    // 🏗️ 2 EPSILON GRAPH (Ceiling geometry monitors)
+    create('EpsilonGraph', 'Center Ceiling', 'Main Ceiling', midX, midY, zRoof - 0.2);
+    create('EpsilonGraph', 'North Ceiling Arch', 'Ceiling Arch', midX, maxY, zRoof - 0.2);
   });
 }
+
+// --- 4. REST ENDPOINTS ---
+app.get('/api/buildings', (req: Request, res: Response) => {
+  // 1. Get pagination parameters from the query string (default to page 1, 50 items per page)
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 50;
+
+  // 2. Calculate pagination boundaries
+  const total = ACTIVE_BUILDINGS.length;
+  const totalPages = Math.ceil(total / limit);
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+
+  const paginatedBuildings = ACTIVE_BUILDINGS.slice(startIndex, endIndex);
+
+  res.status(200).json({ buildings: paginatedBuildings, metadata: {
+      status: 200,
+      message: "Buildings retrieved successfully",
+      error: false,
+      errorMessage: null,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        total: total,
+        perPage: limit
+      }
+    } });
+  });
+
 
 // --- 4. REST ENDPOINTS ---
 app.get('/api/buildings', (req: Request, res: Response) => {
