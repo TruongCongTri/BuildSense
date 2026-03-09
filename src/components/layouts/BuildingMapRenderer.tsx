@@ -16,6 +16,8 @@ export const BuildingMapRenderer: React.FC = () => {
   const [focusedSensor, setFocusedSensor] = useState<Sensor | null>(null);
   const [focusedBuilding, setFocusedBuilding] = useState<Building | null>(null);
 
+  const [playbackTimestamp, setPlaybackTimestamp] = useState<number | null>(null);
+
   const [sensorFilters, setSensorFilters] = useState<Record<string, boolean>>(
     {},
   );
@@ -133,6 +135,7 @@ export const BuildingMapRenderer: React.FC = () => {
         sensorFilters={sensorFilters}
         alertingSensorIds={alertingSensorIds}
         focusedSensor={focusedSensor}
+        playbackTimestamp={playbackTimestamp}
       />
 
       {/* THE NEW FLOATING UI */}
@@ -155,6 +158,7 @@ export const BuildingMapRenderer: React.FC = () => {
         isOpen={!!selectedSensor}
         onClose={() => setSelectedSensor(null)}
         sensor={selectedSensor}
+        onTimePlay={setPlaybackTimestamp}
       />
     </div>
   );

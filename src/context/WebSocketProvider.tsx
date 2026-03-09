@@ -2,62 +2,82 @@ import React, { useEffect, useState, useRef } from "react";
 import type { LiveDataPayload, WebhookAlertPayload } from "../../shared/types";
 import { WebSocketContext } from "./WebSocketContext";
 
-// Define exactly what a raw incoming message looks like to satisfy TypeScript
 interface IncomingMessage {
   type: string;
-  [key: string]: unknown; // It can have other properties, but we only care about 'type' right now
+  liveValues?: Record<string, LiveDataPayload>;
+  alerts?: WebhookAlertPayload[];
 }
+
 export const WebSocketProvider: React.FC<{
   children: React.ReactNode;
   wsUrl?: string;
 }> = ({ children, wsUrl = "ws://localhost:3001" }) => {
-  const [liveValues, setLiveValues] = useState<Record<string, LiveDataPayload>>(
-    {},
-  );
+  const [liveValues, setLiveValues] = useState<Record<string, LiveDataPayload>>({});
   const [alerts, setAlerts] = useState<WebhookAlertPayload[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
   // Use a ref to keep track of the WS instance without triggering re-renders
   const wsRef = useRef<WebSocket | null>(null);
+  const isIntentionalClose = useRef(false);
 
   useEffect(() => {
-    // Open the single connection
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
 
-    ws.onopen = () => setIsConnected(true);
-    ws.onclose = () => setIsConnected(false);
+    const connect = () => {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      // Tell TypeScript that the parsed JSON is an array of IncomingMessage objects
-      const payloads = JSON.parse(event.data) as IncomingMessage[];
+      ws.onopen = () => setIsConnected(true);
 
-      // Handle Live Data Stream
-      const streamData = payloads.filter(
-        (p) => p.type === "realtime_data",
-      ) as unknown as LiveDataPayload[];
-      if (streamData.length > 0) {
-        setLiveValues((prev) => {
-          const newState = { ...prev };
-          streamData.forEach((data) => {
-            newState[data.sensorId] = data;
-          });
-          return newState;
-        });
-      }
+      ws.onmessage = (event) => {
+        try {
+          // 🌟 THE FIX: Parse it as a single object, not an array!
+          const payload = JSON.parse(event.data) as IncomingMessage;
 
-      // Handle Webhook Alerts
-      const newAlerts = payloads.filter(
-        (p) => p.type === "webhook_alert",
-      ) as unknown as WebhookAlertPayload[];
-      if (newAlerts.length > 0) {
-        setAlerts((prev) => [...prev, ...newAlerts]); // Append new alerts to the list
-      }
+          // 🌟 Match the exact type string from your server.ts
+          if (payload.type === "LIVE_DATA") {
+            
+            // 1. Update Live Values dynamically
+            if (payload.liveValues) {
+              setLiveValues((prev) => ({
+                ...prev,
+                ...payload.liveValues, // React perfectly detects this spread as a new state!
+              }));
+            }
+
+            // 2. Update Alerts dynamically
+            if (payload.alerts && payload.alerts.length > 0) {
+              setAlerts((prev) => [...prev, ...payload.alerts!]);
+            }
+          }
+        } catch (error) {
+          console.error("⚠️ Failed to parse WebSocket message:", error);
+        }
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        // Auto-reconnect if it dropped unintentionally
+        if (!isIntentionalClose.current) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        ws.close();
+      };
     };
+
+    connect();
 
     // Cleanup on unmount
     return () => {
-      ws.close();
+      isIntentionalClose.current = true;
+      clearTimeout(reconnectTimeout);
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
     };
   }, [wsUrl]);
 

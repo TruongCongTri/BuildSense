@@ -396,8 +396,8 @@ setInterval(() => {
 
     // Use our realistic math helpers based on the exact current time
     if (sensor.type === "Temperature") baseValue = generateTemperatureData(sensor, timeInHours);
-    else if (sensor.type === "Load") baseValue = generateLoadData(sensor, timeInHours);
-    else if (sensor.type === "Strain") baseValue = generateStrainData(sensor, timeInHours);
+    else if (sensor.type === "Load") baseValue = generateLoadData(sensor, timeInHours, now);
+    else if (sensor.type === "Strain") baseValue = generateStrainData(sensor, timeInHours, now);
 
     // Add high-frequency "jitter" so the numbers flicker realistically on the UI like a real sensor
     const jitter = (Math.random() - 0.5) * (sensor.type === "Strain" ? 15 : 0.8);

@@ -23,6 +23,7 @@ interface MapContainerProps {
   sensorFilters: Record<string, boolean>;
   alertingSensorIds: string[];
   focusedSensor: Sensor | null;
+  playbackTimestamp?: number | null;
 }
 
 export const MapContainer: React.FC<MapContainerProps> = ({
@@ -36,6 +37,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   sensorFilters,
   alertingSensorIds,
   focusedSensor,
+  playbackTimestamp,
 }) => {
   const mapDiv = useRef<HTMLDivElement>(null);
 
@@ -67,7 +69,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     const view = new SceneView({
       container: mapDiv.current,
       map: map,
-      environment: { lighting: { type: "virtual" } },
+      environment: { lighting: { type: "sun" } },
     });
 
     const gLayer = new GraphicsLayer({
@@ -134,6 +136,25 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       view.destroy();
     };
   }, []);
+
+  // --- DAYLIGHT SYNC EFFECT ---
+  // When the playbackTimestamp changes, update the ArcGIS Sun position!
+  useEffect(() => {
+    if (viewInstance && playbackTimestamp) {
+      // Create a fresh Date object from the UNIX timestamp
+      const newDate = new Date(playbackTimestamp);
+      
+      // Assign it directly to the environment lighting config
+      viewInstance.set("environment", {
+        ...viewInstance.environment,
+        lighting: {
+          type: "sun",
+          date: newDate,
+          directShadowsEnabled: true, // Enables building shadows
+        }
+      });
+    }
+  }, [playbackTimestamp, viewInstance]);
 
   // --- 2. DYNAMICALLY MOUNT/UNMOUNT BUILDING LAYERS ---
   useEffect(() => {

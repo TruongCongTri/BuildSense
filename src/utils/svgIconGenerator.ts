@@ -1,11 +1,24 @@
 /**
  * Dynamically generates a Shadcn-styled SVG Data URI for ArcGIS PictureMarkerSymbol.
  * Includes native SVG Gaussian Blur and CSS Keyframe pulsing for active alerts.
+ * Updated to support Temperature, Load, and Strain sensor types.
  */
 export const createSensorMarkerURI = (type: string, isAlert: boolean, isVisible: boolean) => {
   // Extract exact SVG paths from lucide-react corresponding to getSensorIcon()
   let paths = '';
   switch (type) {
+    // 🌟 NEW TYPES
+    case 'Temperature': 
+      paths = '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>'; 
+      break;
+    case 'Load': 
+      paths = '<circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.905 1.462l-1.415 4.536A2 2 0 0 0 5.085 16.5h13.83a2 2 0 0 0 1.905-2.502l-1.415-4.536A2 2 0 0 0 17.5 8Z"/>'; 
+      break;
+    case 'Strain': 
+      paths = '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>'; 
+      break;
+
+    // EXISTING TYPES
     case 'Wind': paths = '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>'; break;
     case 'Rain': paths = '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>'; break;
     case '3DSensor': paths = '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>'; break;
@@ -22,7 +35,6 @@ export const createSensorMarkerURI = (type: string, isAlert: boolean, isVisible:
   const strokeColor = isAlert ? '#ef4444' : '#64748b'; 
   const bgColor = isVisible ? '#0f172a' : 'transparent'; 
 
-  // Native SVG Blurring & Embedded CSS Animation
   const alertStylesAndFilters = isAlert ? `
     <defs>
       <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -41,7 +53,6 @@ export const createSensorMarkerURI = (type: string, isAlert: boolean, isVisible:
     </style>
   ` : '';
 
-  // The pulsing ring and the soft static glow
   const glowElements = isAlert ? `
     <circle cx="32" cy="32" r="14" fill="#ef4444" class="radar-pulse" />
     <circle cx="32" cy="32" r="18" fill="#ef4444" filter="url(#glow)" opacity="0.6"/>
