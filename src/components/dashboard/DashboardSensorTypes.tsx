@@ -38,17 +38,17 @@ export const DashboardSensorTypes: React.FC<DashboardSensorTypesProps> = ({ sens
   }, [sensors]);
 
   return (
-    <Card className="bg-[#1C202A] border-none shadow-md flex flex-col h-full rounded-xl">
-      <CardHeader className="flex flex-row items-center justify-between pb-4 pt-6 px-6">
-        <CardTitle className="text-[17px] font-semibold text-white tracking-wide">Sensor Types</CardTitle>
-        <button className="text-gray-400 hover:text-white transition-colors">
+    <Card className="bg-card border border-border shadow-md flex flex-col h-full rounded-xl transition-colors duration-200">
+      <CardHeader className="flex flex-row items-center justify-between pb-4 pt-6 px-6 border-b border-border/50">
+        <CardTitle className="text-[17px] font-semibold text-foreground tracking-wide">Sensor Types</CardTitle>
+        <button className="text-muted-foreground hover:text-foreground transition-colors">
           <MoreVertical className="w-5 h-5" />
         </button>
       </CardHeader>
       <CardContent className="flex flex-col flex-1 px-6 pb-6">
-        <div className="flex-1 space-y-6 mt-2">
+        <div className="flex-1 space-y-6 mt-4">
           {typeStats.length === 0 ? (
-            <div className="text-sm text-gray-500 text-center py-8">No sensor data available</div>
+            <div className="text-sm text-muted-foreground text-center py-8">No sensor data available</div>
           ) : (
             typeStats.map((stat, idx) => {
               const Icon = stat.icon;
@@ -59,18 +59,18 @@ export const DashboardSensorTypes: React.FC<DashboardSensorTypesProps> = ({ sens
                       <Icon className="w-5 h-5" style={{ color: stat.color }} strokeWidth={2.5} />
                     </div>
                     <div>
-                      <div className="text-[14px] font-semibold text-gray-200">{stat.name}</div>
-                      <div className="text-[12px] text-gray-500 mt-0.5">{stat.count} deployed</div>
+                      <div className="text-[14px] font-semibold text-foreground">{stat.name}</div>
+                      <div className="text-[12px] text-muted-foreground mt-0.5">{stat.count} deployed</div>
                     </div>
                   </div>
-                  <div className="text-[15px] font-bold text-white">{stat.percentage}%</div>
+                  <div className="text-[15px] font-bold text-foreground">{stat.percentage}%</div>
                 </div>
               );
             })
           )}
         </div>
         <div className="pt-8 mt-auto text-center">
-          <button className="text-[13px] font-medium text-[#3B82F6] hover:text-blue-400 transition-colors">
+          <button className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors">
             View All Inventory
           </button>
         </div>

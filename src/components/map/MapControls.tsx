@@ -23,7 +23,11 @@ export const MapControls: React.FC<MapControlsProps> = ({
 }) => {
   return (
     <>
-      <Button onClick={onOpenDashboard} className="shadow-md h-12 px-6" size="lg">
+      <Button 
+        onClick={onOpenDashboard} 
+        className="shadow-lg h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-200" 
+        size="lg"
+      >
         <BarChart3 className="mr-2 h-5 w-5" />
         Global Dashboard
       </Button>
@@ -31,9 +35,13 @@ export const MapControls: React.FC<MapControlsProps> = ({
       <div className="flex gap-2">
         {/* PORTFOLIO TOGGLE BUTTON */}
         <Button 
-          variant={isBuildingMenuOpen ? "default" : "secondary"} 
+          variant="secondary" 
           onClick={onToggleBuildingMenu}
-          className="shadow-sm border border-border"
+          className={`shadow-sm border transition-colors duration-200 ${
+            isBuildingMenuOpen 
+              ? 'bg-accent text-foreground border-primary' 
+              : 'bg-card text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+          }`}
         >
           <Globe className="mr-2 h-4 w-4" />
           Portfolio
@@ -41,9 +49,13 @@ export const MapControls: React.FC<MapControlsProps> = ({
 
         {/* SENSOR VISIBILITY TOGGLE */}
         <Button 
-          variant={isGlobalVisible ? "secondary" : "default"} 
+          variant="secondary" 
           onClick={onToggleGlobalVisibility}
-          className="shadow-sm border border-border"
+          className={`shadow-sm border transition-colors duration-200 ${
+            !isGlobalVisible 
+              ? 'bg-accent text-foreground border-primary' 
+              : 'bg-card text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+          }`}
         >
           {isGlobalVisible ? (
             <><EyeOff className="mr-2 h-4 w-4" /> Hide Sensors</>
@@ -54,9 +66,13 @@ export const MapControls: React.FC<MapControlsProps> = ({
         
         {/* SENSOR FILTER MENU TOGGLE */}
         <Button 
-          variant={isFilterMenuOpen ? "default" : "secondary"} 
+          variant="secondary" 
           onClick={onToggleFilterMenu}
-          className="shadow-sm border border-border"
+          className={`shadow-sm border transition-colors duration-200 ${
+            isFilterMenuOpen 
+              ? 'bg-accent text-foreground border-primary' 
+              : 'bg-card text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+          }`}
         >
           <Settings2 className="mr-2 h-4 w-4" />
           Filters

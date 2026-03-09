@@ -346,7 +346,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   ]);
   return (
     <div className="relative w-full h-full">
-      <div ref={mapDiv} className="w-full h-full bg-[#121212]" />
+      <div ref={mapDiv} className="w-full h-full bg-background transition-colors duration-200" />
       <SensorTooltip
         visible={tooltipState.visible}
         x={tooltipState.x}

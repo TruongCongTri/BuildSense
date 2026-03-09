@@ -118,7 +118,7 @@ export const BuildingMapRenderer: React.FC = () => {
   );
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-background">
+    <div className="relative w-full h-full overflow-hidden bg-background transition-colors duration-200">
       <MapContainer
         buildings={buildings}
         buildingFilters={buildingFilters}

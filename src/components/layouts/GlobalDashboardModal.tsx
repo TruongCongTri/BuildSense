@@ -43,7 +43,7 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
   const sensorTypes = useMemo(() => Array.from(new Set(sensors.map(s => s.type))), [sensors]);
   const [selectedType, setSelectedType] = useState<string>("");
   const [daysRange, setDaysRange] = useState<string>("7");
-  const [chartType, setChartType] = useState<"line" | "bar">("line");
+  // const [chartType, setChartType] = useState<"line" | "bar">("line");
 
   const [visibleSensors, setVisibleSensors] = useState<Record<string, boolean>>({});
   const [mergedChartData, setMergedChartData] = useState<MergedChartRecord[]>([]);
@@ -65,6 +65,8 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
 
   const sensorsOfSelectedType = useMemo(() => sensors.filter(s => s.type === selectedType), [sensors, selectedType]);
   
+  const uniqueBuildingsCount = useMemo(() => new Set(sensors.map(s => s.buildingId)).size, [sensors]);
+
   useEffect(() => {
     const initialVisibility: Record<string, boolean> = {};
     sensorsOfSelectedType.forEach(s => { initialVisibility[s.id] = true; });
@@ -142,23 +144,23 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
   useEffect(() => setCurrentPage(1), [searchTerm, itemsPerPage, sortKey, sortOrder, visibleSensors, daysRange, selectedType]);
 
   const toggleSensorVisibility = (sensorId: string) => setVisibleSensors(prev => ({ ...prev, [sensorId]: !prev[sensorId] }));
-  const unitLabel = sensorsOfSelectedType[0]?.unit || "";
+  // const unitLabel = sensorsOfSelectedType[0]?.unit || "";
   const alertingSensorIds = useMemo(() => alerts.map(a => a.sensorId), [alerts]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[98vw] sm:max-w-[98vw] w-full h-[98vh] flex flex-col p-0 bg-background overflow-hidden border-none rounded-xl">
+<DialogContent className="max-w-[98vw] sm:max-w-[98vw] w-full h-[98vh] flex flex-col p-0 bg-background overflow-hidden border-border rounded-xl transition-colors duration-200">
         <DialogTitle className="sr-only">Building Dashboard</DialogTitle>
 
         {/* Header */}
-        <div className="border-b bg-card shrink-0">
+        <div className="border-b border-border bg-card shrink-0 transition-colors duration-200">
           <div className="flex h-16 items-center px-8">
-            <div className="flex items-center gap-2 font-bold text-lg tracking-tight">
+            <div className="flex items-center gap-2 font-bold text-lg tracking-tight text-foreground">
               <div className="bg-primary/10 p-1.5 rounded-md"><LayoutDashboard className="w-5 h-5 text-primary" /></div>
               Structure Analytics
             </div>
             <div className="ml-auto flex items-center space-x-4">
-              <Badge variant={isConnected ? "outline" : "destructive"} className="px-3 py-1.5 bg-background flex items-center gap-2 text-sm shadow-sm">
+              <Badge variant={isConnected ? "outline" : "destructive"} className="px-3 py-1.5 bg-background flex items-center gap-2 text-sm shadow-sm transition-colors duration-200">
                 {isConnected ? (
                   <><span className="relative flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span> Live Sync Active</>
                 ) : (
@@ -170,8 +172,8 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
         </div>
 
         {/* Main Content Area */}
-        <ScrollArea className="flex-1 bg-background">
-          <div className="flex-1 space-y-4 p-8 pt-6 w-full h-full">
+        <ScrollArea className="flex-1 bg-background transition-colors duration-200">
+          <div className="flex-1 space-y-4 p-8 pt-6 w-full h-full text-foreground">
             
             {/* Dashboard Controls */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-2 md:space-y-0">
@@ -203,12 +205,21 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
               </TabsList>
               
               <TabsContent value="overview" className="space-y-4">
-                <DashboardMetrics sensors={sensors} alertsCount={alerts.length} />
+                <DashboardMetrics sensors={sensors} alertsCount={alerts.length} buildingsCount={uniqueBuildingsCount} />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                   <DashboardChart 
-                    selectedType={selectedType} unitLabel={unitLabel} chartType={chartType} setChartType={setChartType} 
-                    isLoading={isLoading} mergedChartData={mergedChartData} daysRange={daysRange} 
-                    sensorsOfSelectedType={sensorsOfSelectedType} visibleSensors={visibleSensors} sensorColors={SENSOR_COLORS} 
+                    buildings={[]} 
+                    availableTypes={sensorTypes}
+                    chartSensors={sensorsOfSelectedType.filter(s => visibleSensors[s.id] !== false)}
+                    mergedChartData={mergedChartData} 
+                    isLoading={isLoading} 
+                    selectedBuilding="all"
+                    setSelectedBuilding={() => {}}
+                    selectedType={selectedType}
+                    setSelectedType={setSelectedType}
+                    daysRange={daysRange}
+                    setDaysRange={setDaysRange}
+                    sensorColors={SENSOR_COLORS} 
                   />
                   <DashboardLayers 
                     sensorsOfSelectedType={sensorsOfSelectedType} alertingSensorIds={alertingSensorIds} 

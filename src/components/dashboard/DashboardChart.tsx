@@ -30,21 +30,21 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({
 }) => {
   
   return (
-    <Card className="bg-[#1C202A] border-none shadow-md col-span-4 lg:col-span-7 flex flex-col rounded-xl">
-      <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between pb-8 pt-6 px-6 gap-4">
+    <Card className="bg-card border border-border shadow-md col-span-4 lg:col-span-7 flex flex-col rounded-xl transition-colors duration-200">
+      <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between pb-8 pt-6 px-6 gap-4 border-b border-border/50">
         <div>
-          <CardTitle className="text-[17px] font-semibold text-white tracking-wide">Sensor Trends</CardTitle>
-          <CardDescription className="text-gray-400 text-[13px] mt-1">Historical performance of filtered systems</CardDescription>
+          <CardTitle className="text-[17px] font-semibold text-foreground tracking-wide">Sensor Trends</CardTitle>
+          <CardDescription className="text-muted-foreground text-[13px] mt-1">Historical performance of filtered systems</CardDescription>
         </div>
         
         {/* Dynamic Filters */}
         <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
           {/* 1. Building Filter */}
           <Select value={selectedBuilding} onValueChange={setSelectedBuilding}>
-            <SelectTrigger className="w-[160px] h-9 bg-[#11131A] border-[#2A2F3A] text-gray-300 text-[13px] focus:ring-0">
+            <SelectTrigger className="w-[160px] h-9 bg-background border-input text-foreground text-[13px] focus:ring-0 transition-colors duration-200">
               <SelectValue placeholder="All Buildings" />
             </SelectTrigger>
-            <SelectContent className="bg-[#1C202A] border-[#2A2F3A] text-white">
+            <SelectContent className="bg-popover border-border text-popover-foreground transition-colors duration-200">
               <SelectItem value="all">All Buildings</SelectItem>
               {buildings.map(b => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
@@ -54,10 +54,10 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({
 
           {/* 2. Sensor Type Filter */}
           <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-[150px] h-9 bg-[#11131A] border-[#2A2F3A] text-gray-300 text-[13px] focus:ring-0">
+            <SelectTrigger className="w-[150px] h-9 bg-background border-input text-foreground text-[13px] focus:ring-0 transition-colors duration-200">
               <SelectValue placeholder="Sensor Type" />
             </SelectTrigger>
-            <SelectContent className="bg-[#1C202A] border-[#2A2F3A] text-white">
+            <SelectContent className="bg-popover border-border text-popover-foreground transition-colors duration-200">
               {availableTypes.map(t => (
                 <SelectItem key={t} value={t}>{t}</SelectItem>
               ))}
@@ -66,10 +66,10 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({
 
           {/* 3. Time Range Filter */}
           <Select value={daysRange} onValueChange={setDaysRange}>
-            <SelectTrigger className="w-[130px] h-9 bg-[#11131A] border-[#2A2F3A] text-gray-300 text-[13px] focus:ring-0">
+            <SelectTrigger className="w-[130px] h-9 bg-background border-input text-foreground text-[13px] focus:ring-0 transition-colors duration-200">
               <SelectValue placeholder="Range" />
             </SelectTrigger>
-            <SelectContent className="bg-[#1C202A] border-[#2A2F3A] text-white">
+            <SelectContent className="bg-popover border-border text-popover-foreground transition-colors duration-200">
               <SelectItem value="1">Last 24 Hours</SelectItem>
               <SelectItem value="3">Last 3 Days</SelectItem>
               <SelectItem value="7">Last 7 Days</SelectItem>
@@ -78,30 +78,30 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({
         </div>
       </CardHeader>
       
-      <CardContent className="pl-0 pb-6 pr-6 flex-1">
+      <CardContent className="pl-0 pb-6 pt-6 pr-6 flex-1">
         {isLoading ? (
-          <div className="h-[320px] flex items-center justify-center text-gray-500">Compiling trend data...</div>
+          <div className="h-[320px] flex items-center justify-center text-muted-foreground">Compiling trend data...</div>
         ) : mergedChartData.length === 0 ? (
-          <div className="h-[320px] flex items-center justify-center text-gray-500">No data available for this filter combination.</div>
+          <div className="h-[320px] flex items-center justify-center text-muted-foreground">No data available for this filter combination.</div>
         ) : (
           <ChartContainer config={{}} className="h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={mergedChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#2A2F3A" />
+                {/* 🌟 Swapped static hex colors for CSS variables */}
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" />
                 <XAxis 
                   dataKey="timestamp" 
                   tickFormatter={(t) => daysRange === "1" ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(t).toLocaleDateString([], { weekday: 'short' })} 
-                  fontSize={12} stroke="#64748B" tickMargin={15} axisLine={false} tickLine={false} 
+                  fontSize={12} stroke="var(--muted-foreground)" tickMargin={15} axisLine={false} tickLine={false} 
                 />
                 <YAxis 
-                  fontSize={12} stroke="#64748B" tickMargin={15} axisLine={false} tickLine={false} 
+                  fontSize={12} stroke="var(--muted-foreground)" tickMargin={15} axisLine={false} tickLine={false} 
                 />
                 <ChartTooltip 
                   content={<ChartTooltipContent />} 
-                  cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '4 4' }} 
+                  cursor={{ stroke: 'var(--muted-foreground)', strokeWidth: 1, strokeDasharray: '4 4' }} 
                 />
                 
-                {/* Dynamically render lines for up to 5 filtered sensors to prevent overcrowding */}
                 {chartSensors.slice(0, 5).map((sensor, idx) => (
                   <Line 
                     key={sensor.id} 

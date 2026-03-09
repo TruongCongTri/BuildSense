@@ -113,23 +113,21 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
 
   return (
     <div 
-      className={`absolute top-0 right-0 bottom-0 w-[420px] bg-[#111114] border-l border-gray-800 flex flex-col shadow-2xl z-40 transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      className={`absolute top-0 right-0 bottom-0 w-[420px] bg-background border-l border-border flex flex-col shadow-2xl z-40 transition-all duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
     >
-      <div className="flex items-center justify-between p-5 border-b border-gray-800 shrink-0 bg-[#111114]">
+      <div className="flex items-center justify-between p-5 border-b border-border shrink-0 bg-background transition-colors duration-200">
         <div className="flex items-center gap-3">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${sensor.markerColor === 'red' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${sensor.markerColor === 'red' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
             {getSensorIcon(sensor.type, 18, 'currentColor')}
           </div>
-          <h2 className="text-lg font-bold text-white tracking-wide m-0">Selected Sensor</h2>
+          <h2 className="text-lg font-bold text-foreground tracking-wide m-0">Selected Sensor</h2>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* MAGIC FIX: min-h-0 forces flexbox to respect the container height and allow scrolling */}
       <ScrollArea className="flex-1 min-h-0 w-full">
-        {/* MAGIC FIX: overflow-hidden ensures child contents don't stretch the width */}
         <div className="flex flex-col gap-6 p-5 w-full overflow-hidden">
           <SensorDetailsSection sensor={sensor} isOpen={isDetailsOpen} onToggle={setIsDetailsOpen} />
           
