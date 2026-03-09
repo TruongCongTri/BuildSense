@@ -140,31 +140,20 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     if (!mapInstance) return;
 
     buildings.forEach((bldg) => {
+      // 🌟 MAGIC: Skip if the building has no 3D model (like our hidden OSM layer)
+      if (!bldg.modelUrl) return;
+
       const layer = mapInstance.findLayerById(bldg.id) as Layer;
       const isVisible = buildingFilters[bldg.id] ?? true;
 
-      // If the layer isn't on the map yet, let ArcGIS auto-detect and add it!
       if (!layer) {
-        // 🌟 MAGIC BULLET: This auto-detects BIM vs 3DObject vs Mesh perfectly
         Layer.fromArcGISServerUrl({
           url: bldg.modelUrl,
-          properties: {
-            id: bldg.id,
-            title: bldg.name,
-            visible: isVisible,
-          },
+          properties: { id: bldg.id, title: bldg.name, visible: isVisible },
         })
-          .then((autoDetectedLayer) => {
-            mapInstance.add(autoDetectedLayer);
-            console.log(
-              `✅ Successfully mounted ${bldg.name} as ${autoDetectedLayer.type}`,
-            );
-          })
-          .catch((err) => {
-            console.error(`❌ Failed to mount ${bldg.name}:`, err);
-          });
+          .then((autoDetectedLayer) => mapInstance.add(autoDetectedLayer))
+          .catch((err) => console.error(`Failed to mount ${bldg.name}:`, err));
       } else {
-        // Toggle visibility if it already exists
         layer.visible = isVisible;
       }
     });
@@ -173,48 +162,34 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   // --- 3. FLY CAMERA TO FOCUSED BUILDING ---
   useEffect(() => {
     if (!focusedBuilding || !viewInstance || !viewInstance.map) return;
-    // Helper function: Tell ArcGIS to calculate the perfect flight to fit the building's 3D bounding box
-    const performFlight = (layer: Layer) => {
-      layer.when(() => {
-        if (!layer.fullExtent) {
-          console.warn(`Could not fly to ${focusedBuilding.name}: fullExtent is null.`);
-          return;
-        }
 
-        viewInstance
-          .goTo(
-            {
-              target: layer.fullExtent, // 🌟 MAGIC: This contains the true elevation AND the building dimensions!
-              tilt: 70, // A nice architectural viewing angle
-              heading: 0, // Face North
-            },
-            {
-              duration: 3500,
-              easing: "cubic-in-out",
-            },
-          )
-          .catch((err: Error) => {
-            if (err.name !== "AbortError") console.error("Flight error:", err);
-          });
-      });
-    };
-
-    const existingLayer = viewInstance.map.findLayerById(focusedBuilding.id);
-
-    if (existingLayer) {
-      // If the layer is already on the map, fly to it immediately
-      performFlight(existingLayer);
-    } else {
-      // If the layer is still being auto-detected and downloaded from the server, wait for it!
-      const handle = viewInstance.map.layers.on(
-        "after-add",
-        (event: { item: Layer }) => {
-          if (event.item.id === focusedBuilding.id) {
-            performFlight(event.item);
-            handle.remove();
-          }
+    // 🌟 MAGIC: If the building has GPS coordinates provided, fly directly to them!
+    if (focusedBuilding.coordinates && focusedBuilding.coordinates.length === 2) {
+      viewInstance.goTo(
+        {
+          target: [focusedBuilding.coordinates[0], focusedBuilding.coordinates[1]],
+          zoom: 16, // Zoom in tightly to the street
+          tilt: 65, // Angled street view
+          heading: 0,
         },
-      );
+        { duration: 2500, easing: "cubic-in-out" }
+      ).catch((err: Error) => {
+        if (err.name !== "AbortError") console.error("Flight error:", err);
+      });
+      return; 
+    }
+
+    // Fallback logic if there are no coordinates but there IS a 3D Layer
+    const existingLayer = viewInstance.map.findLayerById(focusedBuilding.id);
+    if (existingLayer) {
+      existingLayer.when(() => {
+        if (existingLayer.fullExtent) {
+          viewInstance.goTo(
+            { target: existingLayer.fullExtent, tilt: 70, heading: 0 },
+            { duration: 3500, easing: "cubic-in-out" }
+          );
+        }
+      });
     }
   }, [focusedBuilding, viewInstance]);
 

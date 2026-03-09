@@ -1,21 +1,35 @@
 export type DataParadigm = 'websocket' | 'rest' | 'webhook';
 
+export interface Position {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface MockSensor {
+  id: string;
+  buildingId: string;
+  name: string;
+  type: string;
+  manufacturer: string;
+  paradigm: DataParadigm;
+  unit: string;
+  location: string;
+  position: Position;
+}
+
 export interface Sensor {
   id: string;
   buildingId: string;
   name: string;
-  location: string;
   type: string;
   manufacturer: string;
   paradigm: DataParadigm;
-  status: string;
   unit: string;
   markerColor: string;
-  position: {
-    x: string;
-    y: string;
-    z: string;
-  };
+  location: string;
+  position: Position;
+  status: string;
 }
 
 export interface HistoricalData {
@@ -52,6 +66,7 @@ export interface Building {
   id: string;
   name: string;
   modelUrl: string; // The ArcGIS Scene Server URL
+  coordinates?: [number, number];
   bounds: BuildingBounds;
   defaultCamera: {
     x: number;
