@@ -23,12 +23,6 @@ export const DataLogPage: React.FC = () => {
     [sensors],
   );
 
-  const normalizeStatus = (status: string): FlatLogRecord["status"] => {
-    if (status === "Healthy" || status === "OK") return "Active";
-    if (status === "Warning") return "Maintenance";
-    return "Inactive";
-  };
-
   useEffect(() => {
     Promise.all([
       fetch("http://localhost:3001/api/buildings").then((res) => res.json()),
@@ -81,7 +75,9 @@ export const DataLogPage: React.FC = () => {
             type: sensor.type,
             value: point.value,
             unit: sensor.unit,
-            status: normalizeStatus(sensor.status),
+            adminStatus: point.adminStatus || sensor.adminStatus,
+            healthStatus: point.healthStatus || sensor.healthStatus,
+            dataStatus: point.dataStatus || sensor.dataStatus,
           });
         });
       });
@@ -107,7 +103,9 @@ export const DataLogPage: React.FC = () => {
   const filteredCount = useMemo(() => {
     const searchQuery = searchParams.get("search")?.toLowerCase() || "";
     const activeTypes = searchParams.getAll("type");
-    const activeStatuses = searchParams.getAll("status");
+    const activeAdmin = searchParams.getAll("adminStatus");
+    const activeHealth = searchParams.getAll("healthStatus");
+    const activeData = searchParams.getAll("dataStatus");
     const activeBuildingIds = searchParams.getAll("building");
 
     // The filter puts ID in URL, but the log uses buildingName, so we map it back
@@ -123,13 +121,14 @@ export const DataLogPage: React.FC = () => {
 
       const matchType =
         activeTypes.length === 0 || activeTypes.includes(row.type);
-      const matchStatus =
-        activeStatuses.length === 0 || activeStatuses.includes(row.status);
+      const matchAdmin = activeAdmin.length === 0 || activeAdmin.includes(row.adminStatus);
+      const matchHealth = activeHealth.length === 0 || activeHealth.includes(row.healthStatus);
+      const matchData = activeData.length === 0 || activeData.includes(row.dataStatus);
       const matchBuilding =
         activeBuildingNames.length === 0 ||
         activeBuildingNames.includes(row.buildingName);
 
-      return matchSearch && matchType && matchStatus && matchBuilding;
+      return matchSearch && matchType && matchAdmin && matchHealth && matchData && matchBuilding;
     }).length;
   }, [logs, searchParams, buildings]);
 
@@ -157,7 +156,7 @@ export const DataLogPage: React.FC = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0">
-          <div className="h-full">
+          <div className="h-full flex-shrink-0">
             <DataLogFilters buildings={buildings} availableTypes={availableTypes} />
           </div>
           <DataLogTable data={logs} isLoading={isLoading} buildings={buildings} />

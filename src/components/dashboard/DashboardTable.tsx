@@ -4,8 +4,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { HistoricalData } from '../../../shared/types'; 
+
+// Bring timestamp parser here to prevent "Invalid Date"
+const parseTimestamp = (val: string | number): number => {
+  if (typeof val === "string") {
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return typeof val === "number" ? val : 0;
+};
 
 export interface FlatTableRecord extends HistoricalData {
   sensorId: string;
@@ -33,6 +43,15 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({
   searchTerm, setSearchTerm, sortKey, setSortKey, sortOrder, setSortOrder,
   isLoading, paginatedData, itemsPerPage, setItemsPerPage, currentPage, setCurrentPage, totalPages
 }) => {
+
+  const getStatusBadge = (record: FlatTableRecord) => {
+    if (record.adminStatus === 'Maintenance') return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">Maint.</Badge>;
+    if (record.healthStatus === 'Offline' || record.healthStatus === 'Error') return <Badge variant="outline" className="bg-slate-500/10 text-slate-500 border-slate-500/20 text-[10px]">Offline</Badge>;
+    if (record.dataStatus === 'Critical') return <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">Critical</Badge>;
+    if (record.dataStatus === 'Warning') return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">Warning</Badge>;
+    return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px]">Normal</Badge>;
+  };
+
   return (
     <Card className="border-border shadow-sm flex flex-col h-full bg-card transition-colors duration-200">
       <CardHeader className="flex flex-row items-center justify-between shrink-0 border-b border-border/50">
@@ -60,24 +79,33 @@ export const DashboardTable: React.FC<DashboardTableProps> = ({
                   <div className="flex items-center text-foreground">Date & Time {sortKey === "timestamp" ? (sortOrder === "asc" ? <ArrowUp className="w-3 h-3 ml-2" /> : <ArrowDown className="w-3 h-3 ml-2" />) : <ArrowUpDown className="w-3 h-3 ml-2 opacity-50" />}</div>
                 </TableHead>
                 <TableHead className="h-10 text-foreground">Sensor Source</TableHead>
-                <TableHead className="h-10 text-right cursor-pointer hover:bg-muted/80 w-[200px] text-muted-foreground transition-colors duration-200" onClick={() => { setSortKey("value"); setSortOrder(sortOrder === "asc" ? "desc" : "asc"); }}>
+                <TableHead className="h-10 text-foreground text-center w-[120px]">Status</TableHead>
+                <TableHead className="h-10 text-right cursor-pointer hover:bg-muted/80 w-[150px] text-muted-foreground transition-colors duration-200" onClick={() => { setSortKey("value"); setSortOrder(sortOrder === "asc" ? "desc" : "asc"); }}>
                   <div className="flex items-center justify-end text-foreground">Value {sortKey === "value" ? (sortOrder === "asc" ? <ArrowUp className="w-3 h-3 ml-2" /> : <ArrowDown className="w-3 h-3 ml-2" />) : <ArrowUpDown className="w-3 h-3 ml-2 opacity-50" />}</div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-border/50">
               {isLoading ? (
-                 <TableRow><TableCell colSpan={3} className="h-48 text-center text-muted-foreground border-none">Loading log entries...</TableCell></TableRow>
+                 <TableRow><TableCell colSpan={4} className="h-48 text-center text-muted-foreground border-none">Loading log entries...</TableCell></TableRow>
               ) : paginatedData.length > 0 ? (
-                paginatedData.map((record, index) => (
-                  <TableRow key={index} className="hover:bg-accent transition-colors duration-200 border-none">
-                    <TableCell className="text-sm text-muted-foreground py-3">{new Date(record.timestamp).toLocaleString()}</TableCell>
-                    <TableCell className="font-medium text-sm text-foreground py-3">{record.sensorName}</TableCell>
-                    <TableCell className="text-right font-mono font-semibold text-foreground py-3">{record.value.toFixed(3)} <span className="text-xs font-normal text-muted-foreground ml-1">{record.unit}</span></TableCell>
-                  </TableRow>
-                ))
+                paginatedData.map((record, index) => {
+                  const isOffline = record.healthStatus === 'Offline' || record.adminStatus === 'Maintenance';
+                  return (
+                    <TableRow key={index} className="hover:bg-accent transition-colors duration-200 border-none">
+                      <TableCell className="text-sm text-muted-foreground py-3">{new Date(parseTimestamp(record.timestamp)).toLocaleString()}</TableCell>
+                      <TableCell className="font-medium text-sm text-foreground py-3">{record.sensorName}</TableCell>
+                      {/* 🌟 Display Badge */}
+                      <TableCell className="py-3 text-center">{getStatusBadge(record)}</TableCell>
+                      <TableCell className={`text-right font-mono font-semibold py-3 ${isOffline ? 'text-muted-foreground/50' : 'text-foreground'}`}>
+                        {isOffline ? '--' : record.value.toFixed(3)} 
+                        {!isOffline && <span className="text-xs font-normal text-muted-foreground ml-1">{record.unit}</span>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
-                <TableRow><TableCell colSpan={3} className="h-48 text-center text-muted-foreground border-none">No matching data found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="h-48 text-center text-muted-foreground border-none">No matching data found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

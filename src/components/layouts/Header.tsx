@@ -22,7 +22,7 @@ export const Header: React.FC = () => {
     { name: "Map", path: "/map", icon: Map },
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Data Logs", path: "/datalog", icon: Database },
-    { name: "Sensors", path: "/", icon: Activity },
+    { name: "Sensors", path: "/sensors", icon: Activity },
     { name: "Settings", path: "/", icon: Settings },
   ];
 

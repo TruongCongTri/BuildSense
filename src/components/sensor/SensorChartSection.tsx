@@ -32,6 +32,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent } from "@/components/ui/card";
 import type { DateRange } from "react-day-picker";
 import {
   ChevronDown,
@@ -169,7 +170,7 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     return timeBounds.endOfDay - timeBounds.start <= 24 * 60 * 60 * 1000;
   }, [dateRange, timeBounds]);
 
-  // 🌟 RESTORED TO DEFAULT: Shows the entire history, no more empty 5-minute graphs!
+  // Shows the entire history
   const [timeRange, setTimeRange] = useState<number[]>([
     timeBounds.start,
     timeBounds.maxDataTime,
@@ -213,7 +214,7 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     }
   }
 
-  // 🌟 GUARANTEES PURE NUMBERS: Safely plots the bars and prevents stacking
+  // Safely plots the bars and prevents stacking
   const rangeData = useMemo(() => {
     return chartData
       .map((d) => ({
@@ -274,7 +275,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
 
   const handleReset = () => {
     setIsPlaying(false);
-    // 🌟 RESTORED TO FULL DAY RESET
     setTimeRange([timeBounds.start, timeBounds.maxDataTime]);
     setPlaybackTime(timeBounds.maxDataTime);
   };
@@ -502,143 +502,119 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
       </div>
 
       <CollapsibleContent className="w-full overflow-hidden space-y-4 pt-1">
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm w-full transition-colors duration-200 space-y-5">
-          {isSingleDay && (
-            <>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Viewing Window</span>
+        {/* CARD 1: Viewing Window & Playback */}      
+        <Card className="w-full shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/50">
+          <CardContent className="p-4 space-y-5">
+            {isSingleDay && (
+              <>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Viewing Window</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleReset}
+                      className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Reset
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleReset}
-                    className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <RotateCcw className="w-3 h-3" /> Reset
-                  </Button>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatSliderLabel(timeBounds.start, !isSingleDay)}</span>
+                    <span className="font-semibold text-primary text-center">
+                      {formatSliderLabel(timeRange[0], !isSingleDay)} - {formatSliderLabel(timeRange[1], !isSingleDay)}
+                    </span>
+                    <span>{formatSliderLabel(timeBounds.maxDataTime, !isSingleDay)}</span>
+                  </div>
+                  <Slider
+                    value={timeRange}
+                    min={timeBounds.start}
+                    max={timeBounds.maxDataTime}
+                    step={1000} 
+                    onValueChange={(vals) => {
+                      setTimeRange(vals);
+                      setIsPlaying(false);
+                      setPlaybackTime(vals[1]);
+                    }}
+                  />
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                    {formatSliderLabel(timeBounds.start, !isSingleDay)}
-                  </span>
-                  <span className="font-semibold text-primary text-center">
-                    {formatSliderLabel(timeRange[0], !isSingleDay)} -{" "}
-                    {formatSliderLabel(timeRange[1], !isSingleDay)}
-                  </span>
-                  <span>
-                    {formatSliderLabel(timeBounds.maxDataTime, !isSingleDay)}
-                  </span>
-                </div>
-                <Slider
-                  value={timeRange}
-                  min={timeBounds.start}
-                  max={timeBounds.maxDataTime}
-                  step={1000} 
-                  onValueChange={(vals) => {
-                    setTimeRange(vals);
-                    setIsPlaying(false);
-                    setPlaybackTime(vals[1]);
-                  }}
-                />
-              </div>
-              <div className="w-full h-px bg-border/50"></div>
-            </>
-          )}
+                <div className="w-full h-px bg-border/50"></div>
+              </>
+            )}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Timeline Playback</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {!isSingleDay && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleReset}
-                    className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant={isPlaying ? "destructive" : "default"}
-                  onClick={togglePlay}
-                  className="h-7 px-3 text-xs gap-1"
-                >
-                  {isPlaying ? (
-                    <>
-                      <Pause className="w-3 h-3" /> Pause
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3 h-3" /> Play
-                    </>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Timeline Playback</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!isSingleDay && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleReset}
+                      className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                    </Button>
                   )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{formatSliderLabel(timeRange[0], !isSingleDay)}</span>
-              <span className="font-semibold text-primary text-center">
-                Active: {formatSliderLabel(playbackTime, !isSingleDay)}
-              </span>
-              <span>{formatSliderLabel(timeRange[1], !isSingleDay)}</span>
-            </div>
-            <Slider
-              value={[playbackTime]}
-              min={timeRange[0]}
-              max={timeRange[1]}
-              step={1000}
-              onValueChange={(vals) => { setPlaybackTime(vals[0]); setIsPlaying(false); }}
-            />
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4 shadow-lg w-full overflow-hidden transition-colors duration-200">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">
-                Average {sensor.type}
-              </div>
-              <div className="text-3xl font-bold text-foreground tracking-tight">
-                {avgValue}
-                <span className="text-lg ml-1 font-normal text-muted-foreground">
-                  {sensor.unit}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-              Loading data...
-            </div>
-          ) : chartData.length === 0 ? (
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-              No data available.
-            </div>
-          ) : (
-            <ChartContainer
-              config={{}}
-              className="h-[200px] w-full min-w-0 max-w-full mt-2 overflow-hidden"
-            >
-              {chartElement ? (
-                chartElement
-              ) : (
-                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                  Unsupported chart type
+                  <Button
+                    size="sm"
+                    variant={isPlaying ? "destructive" : "default"}
+                    onClick={togglePlay}
+                    className="h-7 px-3 text-xs gap-1"
+                  >
+                    {isPlaying ? <><Pause className="w-3 h-3" /> Pause</> : <><Play className="w-3 h-3" /> Play</>}
+                  </Button>
                 </div>
-              )}
-            </ChartContainer>
-          )}
-        </div>
+              </div>
+
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{formatSliderLabel(timeRange[0], !isSingleDay)}</span>
+                <span className="font-semibold text-primary text-center">
+                  Active: {formatSliderLabel(playbackTime, !isSingleDay)}
+                </span>
+                <span>{formatSliderLabel(timeRange[1], !isSingleDay)}</span>
+              </div>
+              <Slider
+                value={[playbackTime]}
+                min={timeRange[0]}
+                max={timeRange[1]}
+                step={1000}
+                onValueChange={(vals) => { setPlaybackTime(vals[0]); setIsPlaying(false); }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* CARD 2: Average Data & Chart Container */}
+        <Card className="w-full overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/50">
+          <CardContent className="p-4">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Average {sensor.type}</div>
+                <div className="text-3xl font-bold text-foreground tracking-tight">
+                  {avgValue}
+                  <span className="text-lg ml-1 font-normal text-muted-foreground">{sensor.unit}</span>
+                </div>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">Loading data...</div>
+            ) : chartData.length === 0 ? (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">No data available.</div>
+            ) : (
+              <ChartContainer config={{}} className="h-[200px] w-full min-w-0 max-w-full mt-2 overflow-hidden">
+                {chartElement ? chartElement : <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Unsupported chart type</div>}
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
       </CollapsibleContent>
     </Collapsible>
   );

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import type { Sensor, HistoricalData } from '../../../shared/types';
 import { getSensorIcon } from '../../utils/iconMap';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Activity, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
@@ -10,6 +10,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { SensorDetailsSection } from './SensorDetailsSection';
 import { SensorChartSection } from './SensorChartSection';
 import { SensorTableSection } from './SensorTableSection';
+import { SensorLiveReadingSection } from './SensorLiveReadingSection';
 
 interface SensorDrawerProps {
   isOpen: boolean;
@@ -47,7 +48,7 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // 🌟 THE FIX: Unified Sensor Reset Logic
+  // Unified Sensor Reset Logic
   // Whenever the user clicks a different sensor, this safely resets BOTH calendars back to "Today"
   useEffect(() => {
     if (sensor?.id) {
@@ -119,13 +120,17 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
   // 3. INJECT LIVE DATA INTO CHART AND TABLE
   useEffect(() => {
     if (isOpen && sensor && liveValues[sensor.id]) {
-      const newLiveValue = liveValues[sensor.id].value;
+      // Extract the entire live data object instead of just the value
+      const liveData = liveValues[sensor.id];
       const currentTimestamp = Date.now();
 
       const newPoint: HistoricalData = {
         timestamp: currentTimestamp.toString(),
-        value: newLiveValue,
-        unit: sensor.unit 
+        value: liveData.value,
+        unit: sensor.unit,
+        adminStatus: liveData.adminStatus,
+        healthStatus: liveData.healthStatus,
+        dataStatus: liveData.dataStatus
       };
 
       setChartData(prevData => {
@@ -174,19 +179,13 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
 
   if (!sensor) return null;
 
-  // CALCULATE LIVE METRICS FOR THE WIDGET
+  // EXTRACT ALL 3 STATUS TYPES FOR THE UI
   const currentLiveData = liveValues[sensor.id];
+  const displayValue = currentLiveData?.value ?? (chartData.length > 0 ? chartData[chartData.length - 1].value : null);
   
-  // Use live data if available. If not, fallback to the very last point of the historical chart data!
-  const displayValue = currentLiveData?.value ?? (
-    chartData.length > 0 ? chartData[chartData.length - 1].value : null
-  );
-  
-  // Basic threshold logic for dynamic status colors
-  const isCritical = displayValue !== null && (
-    (sensor.type === "Load" && displayValue > 22) || 
-    (sensor.type === "Strain" && displayValue > 150)
-  );
+  const healthStatus = currentLiveData?.healthStatus || sensor.healthStatus;
+  const adminStatus = currentLiveData?.adminStatus || sensor.adminStatus;
+  const dataStatus = currentLiveData?.dataStatus || sensor.dataStatus;
 
   return (
     <div className={`absolute top-0 right-0 bottom-0 w-[440px] bg-background border-l border-border flex flex-col shadow-2xl z-40 transition-all duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -205,40 +204,13 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
       <ScrollArea className="flex-1 min-h-0 w-full">
         <div className="flex flex-col gap-6 p-5 w-full overflow-hidden">
           
-          <div className="bg-card border border-border rounded-xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
-            {/* Background accent glow based on status */}
-            <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl opacity-20 pointer-events-none ${isCritical ? 'bg-destructive' : 'bg-primary'}`}></div>
-            
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isCritical ? 'bg-destructive' : 'bg-green-400'}`}></span>
-                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isCritical ? 'bg-destructive' : 'bg-green-500'}`}></span>
-                </span>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Live Reading</span>
-              </div>
-              
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-foreground tracking-tight tabular-nums">
-                  {displayValue !== null ? displayValue.toFixed(2) : "..."}
-                </span>
-                <span className="text-lg font-medium text-muted-foreground">
-                  {sensor.unit}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                isCritical 
-                  ? 'bg-destructive/10 text-destructive border-destructive/20' 
-                  : 'bg-green-500/10 text-green-600 border-green-500/20'
-              }`}>
-                <Activity className="w-3.5 h-3.5" />
-                {isCritical ? 'WARNING' : 'NORMAL'}
-              </div>
-            </div>
-          </div>
+          <SensorLiveReadingSection 
+            sensor={sensor} 
+            displayValue={displayValue} 
+            healthStatus={healthStatus}
+            adminStatus={adminStatus}
+            dataStatus={dataStatus}
+          />
           <SensorDetailsSection sensor={sensor} isOpen={isDetailsOpen} onToggle={setIsDetailsOpen} />
           
           <SensorChartSection 

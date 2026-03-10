@@ -2,34 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import type { Building } from '../../../shared/types';
 
-interface DataLogFiltersProps {
+interface SensorsFiltersProps {
   buildings: Building[];
   availableTypes: string[];
 }
 
-export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, availableTypes }) => {
+export const SensorsFilters: React.FC<SensorsFiltersProps> = ({ buildings, availableTypes }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // 1. Initialize local state directly from URL instead of inside useEffect
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState('');
   const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [adminStatuses, setAdminStatuses] = useState<string[]>([]);
   const [healthStatuses, setHealthStatuses] = useState<string[]>([]);
   const [dataStatuses, setDataStatuses] = useState<string[]>([]);
 
-  // 2. Robustly sync URL parameters down to local UI state
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchTerm(searchParams.get('search') || '');
-    setDateRange(searchParams.get('dateRange') || '');
     setSelectedBuildings(searchParams.getAll('building'));
     setSelectedTypes(searchParams.getAll('type'));
     setAdminStatuses(searchParams.getAll('adminStatus'));
@@ -41,22 +36,20 @@ export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, avail
     setter(p => p.includes(val) ? p.filter(x => x !== val) : [...p, val]);
   };
 
-  // 3. Clear local state AND clear out URL query
   const clearAll = () => {
-    setSearchTerm(''); setDateRange(''); setSelectedBuildings([]); setSelectedTypes([]);
+    setSearchTerm(''); setSelectedBuildings([]); setSelectedTypes([]);
     setAdminStatuses([]); setHealthStatuses([]); setDataStatuses([]);
 
     const params = new URLSearchParams(searchParams);
-    ['search', 'dateRange', 'building', 'type', 'adminStatus', 'healthStatus', 'dataStatus', 'page'].forEach(k => params.delete(k));
+    ['search', 'building', 'type', 'adminStatus', 'healthStatus', 'dataStatus', 'page'].forEach(k => params.delete(k));
     setSearchParams(params);
   };
 
   const handleApply = () => {
     const params = new URLSearchParams(searchParams);
-    ['search', 'dateRange', 'building', 'type', 'adminStatus', 'healthStatus', 'dataStatus', 'page'].forEach(k => params.delete(k));
+    ['search', 'building', 'type', 'adminStatus', 'healthStatus', 'dataStatus', 'page'].forEach(k => params.delete(k));
 
     if (searchTerm) params.set('search', searchTerm);
-    if (dateRange) params.set('dateRange', dateRange);
     selectedBuildings.forEach(b => params.append('building', b));
     selectedTypes.forEach(t => params.append('type', t));
     adminStatuses.forEach(s => params.append('adminStatus', s));
@@ -68,48 +61,20 @@ export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, avail
 
   return (
     <Card className="w-64 shrink-0 flex flex-col h-full max-h-[calc(100vh-120px)] overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/50">
-      
-      {/* Pinned Header */}
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 shrink-0 space-y-0">
         <CardTitle className="text-[17px] font-semibold text-foreground tracking-wide">Filters</CardTitle>
-        <button onClick={clearAll} className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors">
-          Clear All
-        </button>
+        <button onClick={clearAll} className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors">Clear All</button>
       </CardHeader>
 
-      {/* Scrollable Content Area */}
       <CardContent className="flex-1 overflow-y-auto px-5 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50">
-        
-        {/* Search */}
         <div className="space-y-3">
           <label className="text-[13px] font-medium text-muted-foreground">Search</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Building / Sensor ID" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-background border-input text-[13px] text-foreground focus-visible:ring-1 focus-visible:ring-primary transition-colors duration-200" 
-            />
+            <Input placeholder="Sensor Name / ID" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 bg-background border-input text-[13px] text-foreground focus-visible:ring-1 focus-visible:ring-primary" />
           </div>
         </div>
 
-        {/* Date Range */}
-        <div className="space-y-3">
-          <label className="text-[13px] font-medium text-muted-foreground">Date Range</label>
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-full bg-background border-input text-foreground text-[13px] transition-colors duration-200">
-              <SelectValue placeholder="Select Range" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border text-popover-foreground transition-colors duration-200">
-              <SelectItem value="1">Last 24 Hours</SelectItem>
-              <SelectItem value="7">Last 7 Days</SelectItem>
-              <SelectItem value="30">Last 30 Days</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Buildings */}
         <div className="space-y-3">
           <label className="text-[13px] font-medium text-muted-foreground">Buildings</label>
           <div className="space-y-2.5">
@@ -122,7 +87,6 @@ export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, avail
           </div>
         </div>
 
-        {/* Sensor Types */}
         <div className="space-y-3">
           <label className="text-[13px] font-medium text-muted-foreground">Sensor Types</label>
           <div className="flex flex-wrap gap-2">
@@ -137,7 +101,6 @@ export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, avail
           </div>
         </div>
 
-        {/* Admin Status */}
         <div className="space-y-3">
           <label className="text-[13px] font-medium text-muted-foreground">Admin Status</label>
           <div className="space-y-2.5">
@@ -150,7 +113,6 @@ export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, avail
           </div>
         </div>
 
-        {/* Health Status */}
         <div className="space-y-3">
           <label className="text-[13px] font-medium text-muted-foreground">Network Health</label>
           <div className="space-y-2.5">
@@ -163,7 +125,6 @@ export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, avail
           </div>
         </div>
 
-        {/* Data Alerts */}
         <div className="space-y-3">
           <label className="text-[13px] font-medium text-muted-foreground">Data Alerts</label>
           <div className="space-y-2.5">
@@ -177,16 +138,9 @@ export const DataLogFilters: React.FC<DataLogFiltersProps> = ({ buildings, avail
         </div>
       </CardContent>
 
-      {/* Pinned Footer */}
       <CardFooter className="border-t border-border bg-muted/50 shrink-0">
-        <Button 
-          onClick={handleApply}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
-        >
-          Apply Filters
-        </Button>
+        <Button onClick={handleApply} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-colors">Apply Filters</Button>
       </CardFooter>
-
     </Card>
   );
 };

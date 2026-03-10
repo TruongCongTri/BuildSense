@@ -4,6 +4,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { DashboardPage } from './pages/DashboardPage';
 import { MainLayout } from './components/layouts/MainLayout';
 import { DataLogPage } from './pages/DataLogPage';
+import { SensorsPage } from './pages/SensorsPage';
+import { SensorDetailPage } from './pages/SensorDetailPage';
 
 const App: React.FC = () => {
   return (
@@ -19,6 +21,8 @@ const App: React.FC = () => {
           <Route path="/map" element={<BuildingMapRenderer />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/datalog" element={<DataLogPage />} />
+          <Route path="/sensors" element={<SensorsPage />} />
+          <Route path="/sensors/:id" element={<SensorDetailPage />} />
           {/* Add future routes here like /settings, /network, etc. */}
           
         </Route>

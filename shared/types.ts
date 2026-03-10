@@ -6,18 +6,6 @@ export interface Position {
   z: number;
 }
 
-export interface MockSensor {
-  id: string;
-  buildingId: string;
-  name: string;
-  type: string;
-  manufacturer: string;
-  paradigm: DataParadigm;
-  unit: string;
-  location: string;
-  position: Position;
-}
-
 export interface Sensor {
   id: string;
   buildingId: string;
@@ -29,28 +17,41 @@ export interface Sensor {
   markerColor: string;
   location: string;
   position: Position;
-  status: string;
+  adminStatus: 'Active' | 'Inactive' | 'Maintenance' | 'Decommissioned';
+  healthStatus: 'Healthy' | 'Warning' | 'Error' | 'Offline';
+  dataStatus: 'Normal' | 'Warning' | 'Critical';
 }
 
 export interface HistoricalData {
   timestamp: string;
   value: number;
-  unit: string;
+  unit?: string;
+  adminStatus: 'Active' | 'Inactive' | 'Maintenance' | 'Decommissioned';
+  healthStatus: 'Healthy' | 'Warning' | 'Error' | 'Offline';
+  dataStatus: 'Normal' | 'Warning' | 'Critical';
 }
 
-export interface LiveDataPayload {
-  type: 'realtime_data';
-  sensorId: string;
+// Defines the shape of the actual data inside the live dictionary
+export interface LiveSensorValue {
   value: number;
-  timestamp: string;
+  dataStatus: 'Normal' | 'Warning' | 'Critical';
+  healthStatus: 'Healthy' | 'Warning' | 'Error' | 'Offline';
+  adminStatus: 'Active' | 'Inactive' | 'Maintenance' | 'Decommissioned';
 }
 
 export interface WebhookAlertPayload {
-  type: 'webhook_alert';
+  type?: string;
   sensorId: string;
-  severity: string;
+  severity?: string;
   message: string;
-  timestamp: string;
+  timestamp?: string; // Made optional so live auto-alerts don't crash TS
+}
+
+//  Defines the shape of the overall incoming WS message
+export interface LiveDataPayload {
+  type: 'LIVE_DATA';
+  liveValues: Record<string, LiveSensorValue>;
+  alerts: WebhookAlertPayload[];
 }
 
 export interface BuildingBounds {
@@ -65,7 +66,7 @@ export interface BuildingBounds {
 export interface Building {
   id: string;
   name: string;
-  modelUrl: string; // The ArcGIS Scene Server URL
+  modelUrl: string;
   coordinates?: [number, number];
   bounds: BuildingBounds;
   defaultCamera: {

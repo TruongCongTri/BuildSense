@@ -17,6 +17,15 @@ import { DashboardChart } from '../dashboard/DashboardChart';
 import { DashboardLayers } from '../dashboard/DashboardLayers';
 import { DashboardTable } from '../dashboard/DashboardTable';
 
+// Added universal parser to handle string timestamps from DB
+const parseTimestamp = (val: string | number): number => {
+  if (typeof val === "string") {
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return typeof val === "number" ? val : 0;
+};
+
 interface GlobalDashboardModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,7 +38,7 @@ interface FlatTableRecord extends HistoricalData {
   unit: string;
 }
 
-interface MergedChartRecord {
+export interface MergedChartRecord {
   timestamp: number;
   [sensorId: string]: number; 
 }
@@ -43,7 +52,6 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
   const sensorTypes = useMemo(() => Array.from(new Set(sensors.map(s => s.type))), [sensors]);
   const [selectedType, setSelectedType] = useState<string>("");
   const [daysRange, setDaysRange] = useState<string>("7");
-  // const [chartType, setChartType] = useState<"line" | "bar">("line");
 
   const [visibleSensors, setVisibleSensors] = useState<Record<string, boolean>>({});
   const [mergedChartData, setMergedChartData] = useState<MergedChartRecord[]>([]);
@@ -96,7 +104,8 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
         results.forEach(({ sensorId, sensorName, unit, history }) => {
           history.forEach((point: HistoricalData) => {
             flatData.push({ ...point, sensorId, sensorName, unit });
-            const timeKey = new Date(point.timestamp).setSeconds(0, 0); 
+            // 🌟 THE FIX: Safely parse the timestamp before transforming it to a date key
+            const timeKey = new Date(parseTimestamp(point.timestamp)).setSeconds(0, 0); 
             if (!timeMap.has(timeKey)) timeMap.set(timeKey, { timestamp: timeKey });
             timeMap.get(timeKey)![sensorId] = point.value;
           });
@@ -124,13 +133,15 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
       const lowerSearch = searchTerm.toLowerCase();
       data = data.filter(item => 
         item.sensorName.toLowerCase().includes(lowerSearch) ||
-        new Date(item.timestamp).toLocaleString().toLowerCase().includes(lowerSearch) ||
+        // 🌟 THE FIX: Safe search date mapping
+        new Date(parseTimestamp(item.timestamp)).toLocaleString().toLowerCase().includes(lowerSearch) ||
         item.value.toFixed(3).includes(lowerSearch)
       );
     }
     data.sort((a, b) => {
-      const aVal = sortKey === "timestamp" ? new Date(a.timestamp).getTime() : a.value;
-      const bVal = sortKey === "timestamp" ? new Date(b.timestamp).getTime() : b.value;
+      // Safe numeric sorting
+      const aVal = sortKey === "timestamp" ? parseTimestamp(a.timestamp) : a.value;
+      const bVal = sortKey === "timestamp" ? parseTimestamp(b.timestamp) : b.value;
       if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
       if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
       return 0;
@@ -144,12 +155,11 @@ export const GlobalDashboardModal: React.FC<GlobalDashboardModalProps> = ({ isOp
   useEffect(() => setCurrentPage(1), [searchTerm, itemsPerPage, sortKey, sortOrder, visibleSensors, daysRange, selectedType]);
 
   const toggleSensorVisibility = (sensorId: string) => setVisibleSensors(prev => ({ ...prev, [sensorId]: !prev[sensorId] }));
-  // const unitLabel = sensorsOfSelectedType[0]?.unit || "";
   const alertingSensorIds = useMemo(() => alerts.map(a => a.sensorId), [alerts]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-<DialogContent className="max-w-[98vw] sm:max-w-[98vw] w-full h-[98vh] flex flex-col p-0 bg-background overflow-hidden border-border rounded-xl transition-colors duration-200">
+      <DialogContent className="max-w-[98vw] sm:max-w-[98vw] w-full h-[98vh] flex flex-col p-0 bg-background overflow-hidden border-border rounded-xl transition-colors duration-200">
         <DialogTitle className="sr-only">Building Dashboard</DialogTitle>
 
         {/* Header */}

@@ -1,18 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
-import type { LiveDataPayload, WebhookAlertPayload } from "../../shared/types";
+import type { LiveDataPayload, LiveSensorValue, WebhookAlertPayload } from "../../shared/types";
 import { WebSocketContext } from "./WebSocketContext";
-
-interface IncomingMessage {
-  type: string;
-  liveValues?: Record<string, LiveDataPayload>;
-  alerts?: WebhookAlertPayload[];
-}
 
 export const WebSocketProvider: React.FC<{
   children: React.ReactNode;
   wsUrl?: string;
 }> = ({ children, wsUrl = "ws://localhost:3001" }) => {
-  const [liveValues, setLiveValues] = useState<Record<string, LiveDataPayload>>({});
+  const [liveValues, setLiveValues] = useState<Record<string, LiveSensorValue>>({});
   const [alerts, setAlerts] = useState<WebhookAlertPayload[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -31,10 +25,10 @@ export const WebSocketProvider: React.FC<{
 
       ws.onmessage = (event) => {
         try {
-          // 🌟 THE FIX: Parse it as a single object, not an array!
-          const payload = JSON.parse(event.data) as IncomingMessage;
+          // Parse it as a single object, not an array!
+          const payload = JSON.parse(event.data) as LiveDataPayload;
 
-          // 🌟 Match the exact type string from your server.ts
+          // Match the exact type string from your server.ts
           if (payload.type === "LIVE_DATA") {
             
             // 1. Update Live Values dynamically
@@ -47,7 +41,12 @@ export const WebSocketProvider: React.FC<{
 
             // 2. Update Alerts dynamically
             if (payload.alerts && payload.alerts.length > 0) {
-              setAlerts((prev) => [...prev, ...payload.alerts!]);
+              // Automatically tag alerts with a timestamp if they don't have one
+              const timestampedAlerts = payload.alerts.map(a => ({
+                ...a,
+                timestamp: a.timestamp || new Date().toISOString()
+              }));
+              setAlerts((prev) => [...prev, ...timestampedAlerts]);
             }
           }
         } catch (error) {

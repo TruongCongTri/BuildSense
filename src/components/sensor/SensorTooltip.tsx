@@ -17,14 +17,16 @@ export const SensorTooltip: React.FC<SensorTooltipProps> = ({ visible, x, y, sen
 
   if (!visible || !sensor) return null;
   const liveData = liveValues[sensor.id];
+  const health = liveData?.healthStatus || sensor.healthStatus;
+  const admin = liveData?.adminStatus || sensor.adminStatus;
+  const dataStat = liveData?.dataStatus || sensor.dataStatus;
 
   return (
     <Card 
       className="absolute z-50 w-56 p-3 shadow-2xl pointer-events-none -translate-x-1/2 -translate-y-full mb-3 bg-popover border-border text-popover-foreground transition-colors duration-200"
       style={{ left: x, top: y }}
     >
-      {/* Top bar with Icon and Title */}
-      <div className="flex items-center gap-3 border-b border-border">
+      <div className="flex items-center gap-3 border-b border-border pb-2">
         <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary shrink-0">
           {getSensorIcon(sensor.type, 14, 'currentColor')}
         </div>
@@ -33,22 +35,37 @@ export const SensorTooltip: React.FC<SensorTooltipProps> = ({ visible, x, y, sen
         </h4>
       </div>
       
-      {/* Key/Value Data */}
-      <div className="flex flex-col gap-2 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px] pt-2">
+        
+        {/* Hardware Health */}
         <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">Status</span>
-          {sensor.status === 'Warning' ? (
-             <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] uppercase font-semibold px-2 py-0">Warn</Badge>
+          <span className="text-muted-foreground">Hardware</span>
+          {health === 'Offline' ? (
+             <Badge variant="outline" className="bg-slate-500/10 text-slate-500 border-slate-500/20 text-[10px] uppercase font-semibold px-2 py-0">Offline</Badge>
+          ) : health === 'Warning' ? (
+             <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] uppercase font-semibold px-2 py-0">Warning</Badge>
+          ) : health === 'Error' ? (
+             <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] uppercase font-semibold px-2 py-0">Error</Badge>
           ) : (
-             <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] uppercase font-semibold px-2 py-0">OK</Badge>
+             <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] uppercase font-semibold px-2 py-0">Healthy</Badge>
           )}
         </div>
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">Type</span>
-          <span className="text-foreground font-medium">{sensor.type}</span>
-        </div>
+
+        {/* Data Alerts (Only show if healthy & active) */}
+        {health !== 'Offline' && admin !== 'Maintenance' && (
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Data Alert</span>
+            {dataStat === 'Critical' ? (
+               <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] uppercase font-semibold px-2 py-0">Critical</Badge>
+            ) : dataStat === 'Warning' ? (
+               <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] uppercase font-semibold px-2 py-0">Warning</Badge>
+            ) : (
+               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] uppercase font-semibold px-2 py-0">Normal</Badge>
+            )}
+          </div>
+        )}
         
-        {liveData && (
+        {liveData && health !== 'Offline' && admin !== 'Maintenance' && (
             <div className="flex justify-between items-center mt-1 border-t border-border/50 pt-2.5">
               <span className="text-muted-foreground">Live Reading</span> 
               <span className="font-mono font-bold text-foreground text-[13px]">
@@ -58,7 +75,6 @@ export const SensorTooltip: React.FC<SensorTooltipProps> = ({ visible, x, y, sen
         )}
       </div>
 
-      {/* Small pointer triangle pointing down at the marker */}
       <div className="absolute left-1/2 bottom-[-6px] transform -translate-x-1/2 w-3 h-3 bg-popover border-b border-r border-border rotate-45 transition-colors duration-200"></div>
     </Card>
   );

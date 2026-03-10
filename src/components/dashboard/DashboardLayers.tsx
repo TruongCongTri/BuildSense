@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, WifiOff, Wrench } from 'lucide-react';
 import type { Sensor } from '../../../shared/types';
 
 interface DashboardLayersProps {
@@ -27,6 +27,9 @@ export const DashboardLayers: React.FC<DashboardLayersProps> = ({
           <div className="flex flex-col gap-2">
             {sensorsOfSelectedType.map((sensor, idx) => {
               const hasAlert = alertingSensorIds.includes(sensor.id);
+              const isOffline = sensor.healthStatus === 'Offline' || sensor.healthStatus === 'Error';
+              const isMaintenance = sensor.adminStatus === 'Maintenance';
+
               return (
                 <div key={sensor.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-accent transition-colors duration-200">
                   <div className="flex items-center gap-3 overflow-hidden">
@@ -37,6 +40,16 @@ export const DashboardLayers: React.FC<DashboardLayersProps> = ({
                     <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: sensorColors[idx % sensorColors.length] }} />
                     <div className="truncate text-sm font-medium text-foreground">{sensor.name}</div>
                   </div>
+                  {isMaintenance && (
+                      <span title="In Maintenance" className="flex items-center">
+                        <Wrench className="w-4 h-4 text-amber-500 shrink-0" />
+                      </span>
+                    )}
+                    {isOffline && !isMaintenance && (
+                      <span title="Offline" className="flex items-center">
+                        <WifiOff className="w-4 h-4 text-slate-500 shrink-0" />
+                      </span>
+                    )}
                   {hasAlert && (
                     <div className="flex items-center gap-2" title="Active Alert">
                       <span className="relative flex h-2 w-2">

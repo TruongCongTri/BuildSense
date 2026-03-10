@@ -1,8 +1,8 @@
 import { createContext, useContext } from 'react';
-import type { LiveDataPayload, WebhookAlertPayload } from '../../shared/types';
+import type { LiveSensorValue, WebhookAlertPayload } from '../../shared/types';
 
 export interface WebSocketContextType {
-  liveValues: Record<string, LiveDataPayload>;
+  liveValues: Record<string, LiveSensorValue>;
   alerts: WebhookAlertPayload[];
   isConnected: boolean;
   clearAlert: (timestamp: string) => void;
@@ -11,7 +11,7 @@ export interface WebSocketContextType {
 // Export the context itself
 export const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
-// 🌟 ADDED: The custom hook so SensorDrawer can use this context easily!
+// ADDED: The custom hook so SensorDrawer can use this context easily!
 export const useWebSocket = () => {
   const context = useContext(WebSocketContext);
   if (context === undefined) {

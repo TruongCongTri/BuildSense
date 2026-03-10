@@ -1,9 +1,9 @@
 // --- 4. DATA GENERATION HELPERS ---
 
-import { MockSensor } from "./types";
+import { Sensor } from "./types";
 
 // A. TEMPERATURE HELPER (Temp stays roughly the same regardless of day)
-export function generateTemperatureData(sensor: MockSensor, timeInHours: number): number {
+export function generateTemperatureData(sensor: Sensor, timeInHours: number): number {
   const baseTemp = 29.5 - 5.5 * Math.cos(((timeInHours - 14) / 24) * 2 * Math.PI);
   const isOverpass = sensor.id.includes("center");
   
@@ -11,8 +11,8 @@ export function generateTemperatureData(sensor: MockSensor, timeInHours: number)
   return baseTemp * multiplier + (Math.random() * 1.5);
 }
 
-// 🌟 B. LOAD HELPER (Now completely changes based on Weekends vs Weekdays!)
-export function generateLoadData(sensor: MockSensor, timeInHours: number, date: Date): number {
+// B. LOAD HELPER (Now completely changes based on Weekends vs Weekdays!)
+export function generateLoadData(sensor: Sensor, timeInHours: number, date: Date): number {
   const isWeekend = date.getDay() === 0 || date.getDay() === 6; // Sunday = 0, Saturday = 6
   
   const isMorningRush = timeInHours >= 7 && timeInHours <= 9.5;
@@ -47,8 +47,8 @@ export function generateLoadData(sensor: MockSensor, timeInHours: number, date: 
   }
 }
 
-// 🌟 C. FIBER OPTIC STRAIN HELPER
-export function generateStrainData(sensor: MockSensor, timeInHours: number, date: Date): number {
+// C. FIBER OPTIC STRAIN HELPER
+export function generateStrainData(sensor: Sensor, timeInHours: number, date: Date): number {
   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
   const isOverpass = sensor.id.includes("center");
   
@@ -63,7 +63,7 @@ export function generateStrainData(sensor: MockSensor, timeInHours: number, date
 }
 
 // --- 5. MAIN DATA GENERATOR ---
-export function generateHistoricalData(sensor: MockSensor, days: number, limit: number) {
+export function generateHistoricalData(sensor: Sensor, days: number, limit: number) {
   const history = [];
   const now = Date.now();
   const intervalMs = 15 * 60 * 1000; 
@@ -76,15 +76,54 @@ export function generateHistoricalData(sensor: MockSensor, days: number, limit: 
     
     let value = 0;
 
+    // 1. Default all historical points to normal/healthy
+    let dataStatus = "Normal";
+    let healthStatus = "Healthy";
+    let adminStatus = "Active";
+
+    // 2. Generate the actual historical value
     if (sensor.type === "Temperature") {
       value = generateTemperatureData(sensor, timeInHours);
     } else if (sensor.type === "Load") {
-      value = generateLoadData(sensor, timeInHours, date); // Pass Date
+      value = generateLoadData(sensor, timeInHours, date);
+      // Determine historical dataStatus based on the generated value!
+      if (value > 22) dataStatus = "Warning";
     } else if (sensor.type === "Strain") {
-      value = generateStrainData(sensor, timeInHours, date); // Pass Date
+      value = generateStrainData(sensor, timeInHours, date);
+      // Determine historical dataStatus based on the generated value!
+      if (value > 150) dataStatus = "Critical";
     }
 
-    history.push({ timestamp, value: Number(value.toFixed(2)) });
+    // 3. Simulate random historical sensor downtime (1% chance a historical point was dropped)
+    // This makes the datalog look highly realistic!
+    if (Math.random() > 0.99) {
+      healthStatus = "Offline";
+      value = 0;
+      dataStatus = "Normal";
+    }
+
+    // 4. If this is the "Current/Latest" point (i=0), match the actual live sensor state from the Chaos Engine
+    if (i === 0) {
+      healthStatus = sensor.healthStatus;
+      adminStatus = sensor.adminStatus;
+      
+      // If it's currently broken, zero it out. Otherwise, use the calculated status.
+      if (healthStatus === 'Offline' || adminStatus === 'Maintenance') {
+        value = 0;
+        dataStatus = 'Normal';
+      } else {
+        dataStatus = sensor.dataStatus || dataStatus;
+      }
+    }
+
+    // Push the fully typed, realistic historical record
+    history.push({ 
+      timestamp, 
+      value: Number(value.toFixed(2)),
+      dataStatus,
+      healthStatus,
+      adminStatus
+    });
   }
 
   return history.reverse(); 
