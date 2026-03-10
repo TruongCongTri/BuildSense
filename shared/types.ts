@@ -75,4 +75,5 @@ export interface Building {
     z: number;
     tilt: number;
   };
+  type?: 'highway' | 'bridge' | 'building' | 'tunnel' | string;
 }

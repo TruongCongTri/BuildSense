@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, Activity, Search, ChevronDown, ChevronRight, LocateFixed, X, MapPin } from 'lucide-react';
+import { Building2, Activity, Search, ChevronDown, ChevronRight, LocateFixed, X, MapPin, Route, Mountain } from 'lucide-react';
 import type { Building, Sensor } from '../../shared/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,6 +15,13 @@ interface TopSearchBarProps {
   onBuildingLocate: (bldg: Building) => void;
   onSensorLocate: (sensor: Sensor) => void;
 }
+
+// Helper to get the right icon based on the infrastructure type
+const getInfraIcon = (type?: string, className = "w-4 h-4 text-muted-foreground") => {
+  if (type === 'highway' || type === 'road') return <Route className={className} />;
+  if (type === 'bridge') return <Mountain className={className} />;
+  return <Building2 className={className} />;
+};
 
 export const TopSearchBar: React.FC<TopSearchBarProps> = ({
   buildings, sensors, buildingFilters, sensorFilters,
@@ -117,9 +124,23 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
   const filteredBuildings = buildings.filter(b => b.name.toLowerCase().includes(bldgSearchQuery.toLowerCase()));
   const allBuildingsSelected = filteredBuildings.length > 0 && filteredBuildings.every(b => draftBldgFilters[b.id]);
   
+  // GROUP BUILDINGS BY CATEGORY (e.g. 'highway', 'bridge', 'building')
+  const groupedBuildings = filteredBuildings.reduce((acc, bldg) => {
+    const type = bldg.type || 'building';
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(bldg);
+    return acc;
+  }, {} as Record<string, Building[]>);
+
   const handleSelectAllBuildings = (checked: boolean) => {
     const next: Record<string, boolean> = { ...draftBldgFilters };
     filteredBuildings.forEach(b => next[b.id] = checked);
+    setDraftBldgFilters(next);
+  };
+
+  const handleSelectGroupBuildings = (type: string, checked: boolean) => {
+    const next: Record<string, boolean> = { ...draftBldgFilters };
+    groupedBuildings[type].forEach(b => next[b.id] = checked);
     setDraftBldgFilters(next);
   };
 
@@ -164,7 +185,7 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
   return (
     <div className="absolute top-6 left-6 z-50 flex gap-2">
       
-      {/* --- BUILDINGS MENU --- */}
+      {/* --- INFRASTRUCTURE MENU --- */}
       <div className="relative">
         <Button 
           variant="secondary" 
@@ -176,19 +197,18 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
           onClick={() => { setActiveMenu(activeMenu === 'buildings' ? null : 'buildings'); setShowGlobalResults(false); }}
         >
           <Building2 className="w-4 h-4 mr-2" /> 
-          {activeBldgCount === buildings.length ? "All Buildings" : `${activeBldgCount} Buildings`}
+          {activeBldgCount === buildings.length ? "All Infrastructure" : `${activeBldgCount} Assets`}
           <ChevronDown className="w-4 h-4 ml-3" />
         </Button>
 
         {activeMenu === 'buildings' && (
           <div className="absolute top-full left-0 mt-2 w-80 bg-popover border border-border rounded-lg shadow-2xl overflow-hidden transition-colors duration-200">
-            {/* Building Search */}
             <div className="p-3 border-b border-border bg-muted/50">
                <div className="relative">
                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                  <input 
                    type="text" 
-                   placeholder="Search buildings..." 
+                   placeholder="Search infrastructure..." 
                    className="w-full bg-background border border-input rounded-md py-2 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors duration-200"
                    value={bldgSearchQuery}
                    onChange={(e) => setBldgSearchQuery(e.target.value)}
@@ -202,30 +222,53 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
                   checked={allBuildingsSelected}
                   onCheckedChange={(val) => handleSelectAllBuildings(!!val)}
                 />
-                <span className="font-semibold text-foreground">Select All Buildings</span>
+                <span className="font-semibold text-foreground">Select All Infrastructure</span>
               </div>
             </div>
             
-            <ScrollArea className="h-[240px] p-2">
-              <div className="flex flex-col gap-1">
-                {filteredBuildings.length === 0 ? (
-                  <p className="text-center text-sm text-muted-foreground mt-4">No buildings found.</p>
+            <ScrollArea className="h-[280px] p-2">
+              <div className="flex flex-col gap-3">
+                {Object.keys(groupedBuildings).length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground mt-4">No assets found.</p>
                 ) : (
-                  filteredBuildings.map(bldg => (
-                    <div key={bldg.id} className="flex items-center justify-between group p-2 rounded-md hover:bg-accent transition-colors duration-200">
-                      <div className="flex items-center gap-3">
-                        <Checkbox 
-                          checked={draftBldgFilters[bldg.id] ?? true}
-                          onCheckedChange={(val) => setDraftBldgFilters(p => ({ ...p, [bldg.id]: !!val }))}
-                        />
-                        <Building2 className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{bldg.name}</span>
+                  Object.keys(groupedBuildings).map(type => {
+                    const groupItems = groupedBuildings[type];
+                    const allInGroupSelected = groupItems.every(b => draftBldgFilters[b.id]);
+                    const someInGroupSelected = groupItems.some(b => draftBldgFilters[b.id]);
+
+                    return (
+                      <div key={type} className="mb-2">
+                        {/* Group Header */}
+                        <div className="flex items-center gap-2 px-2 py-1 mb-1">
+                          <Checkbox 
+                            checked={allInGroupSelected ? true : (someInGroupSelected ? "indeterminate" : false)}
+                            onCheckedChange={(val) => handleSelectGroupBuildings(type, !!val)}
+                            className="h-3.5 w-3.5"
+                          />
+                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{type}s</span>
+                        </div>
+                        
+                        {/* Group Items */}
+                        <div className="pl-4 border-l-2 border-border/50 ml-3 flex flex-col gap-1">
+                          {groupItems.map(bldg => (
+                            <div key={bldg.id} className="flex items-center justify-between group p-1.5 rounded-md hover:bg-accent transition-colors duration-200">
+                              <div className="flex items-center gap-3">
+                                <Checkbox 
+                                  checked={draftBldgFilters[bldg.id] ?? true}
+                                  onCheckedChange={(val) => setDraftBldgFilters(p => ({ ...p, [bldg.id]: !!val }))}
+                                />
+                                {getInfraIcon(bldg.type, "w-4 h-4 text-muted-foreground")}
+                                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate max-w-[160px]" title={bldg.name}>{bldg.name}</span>
+                              </div>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-primary hover:text-primary/80" onClick={() => onBuildingLocate(bldg)}>
+                                <LocateFixed className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-primary hover:text-primary/80" onClick={() => onBuildingLocate(bldg)}>
-                        <LocateFixed className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </ScrollArea>
@@ -305,7 +348,7 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
                             checked={allInBldgSelected ? true : (someInBldgSelected ? "indeterminate" : false)}
                             onCheckedChange={(val) => handleSelectBuildingGroup(bldg.id, !!val)}
                           />
-                          <Building2 className="w-4 h-4 text-muted-foreground" />
+                          {getInfraIcon(bldg.type, "w-4 h-4 text-muted-foreground")}
                           <span className="text-sm font-medium text-foreground">{bldg.name}</span>
                         </div>
 
@@ -386,7 +429,7 @@ export const TopSearchBar: React.FC<TopSearchBarProps> = ({
                             className="flex items-center gap-3 px-4 py-2 hover:bg-accent cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
                             onClick={() => handleGlobalBuildingClick(bldg)}
                           >
-                            <Building2 className="w-4 h-4 text-primary" />
+                            {getInfraIcon(bldg.type, "w-4 h-4 text-muted-foreground")}
                             {bldg.name}
                           </div>
                         ))}
