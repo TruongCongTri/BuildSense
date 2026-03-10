@@ -81,7 +81,7 @@ export const SensorTableSection: React.FC<SensorTableSectionProps> = ({
         {/* 🌟 CALENDAR POPOVER FOR TABLE */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 text-xs justify-start text-left font-normal w-[180px] bg-card border-border hover:bg-accent/50">
+            <Button variant="outline" size="sm" className="h-7 text-xs justify-start text-left font-normal w-auto min-w-[160px] pr-3 bg-card border-border hover:bg-accent/50">
               <CalendarIcon className="mr-2 h-3 w-3" />
               {dateRange?.from ? (
                 dateRange.to && dateRange.from.getTime() !== dateRange.to.getTime() ? (

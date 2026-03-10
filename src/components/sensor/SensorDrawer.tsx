@@ -47,6 +47,16 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // 🌟 THE FIX: Unified Sensor Reset Logic
+  // Whenever the user clicks a different sensor, this safely resets BOTH calendars back to "Today"
+  useEffect(() => {
+    if (sensor?.id) {
+      const today = new Date();
+      setDateRange({ from: today, to: today }); 
+      setTableDateRange({ from: today, to: today }); 
+    }
+  }, [sensor?.id]);
+
   // 1. FETCH CHART DATA
   useEffect(() => {
     let ignore = false;
@@ -104,7 +114,7 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
     };
     if (isOpen && sensor) fetchTableData();
     return () => { ignore = true; };
-  }, [isOpen, sensor, tableDateRange]); // 🌟 Dependency updated
+  }, [isOpen, sensor, tableDateRange]);
 
   // 3. INJECT LIVE DATA INTO CHART AND TABLE
   useEffect(() => {
@@ -210,8 +220,8 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
               
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold text-foreground tracking-tight tabular-nums">
-      {displayValue !== null ? displayValue.toFixed(2) : "..."}
-    </span>
+                  {displayValue !== null ? displayValue.toFixed(2) : "..."}
+                </span>
                 <span className="text-lg font-medium text-muted-foreground">
                   {sensor.unit}
                 </span>

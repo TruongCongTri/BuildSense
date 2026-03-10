@@ -138,22 +138,47 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   }, []);
 
   // --- DAYLIGHT SYNC EFFECT ---
-  // When the playbackTimestamp changes, update the ArcGIS Sun position!
+  // If playing back history, sync sun to playback. Otherwise, sync to real-world time!
   useEffect(() => {
-    if (viewInstance && playbackTimestamp) {
-      // Create a fresh Date object from the UNIX timestamp
-      const newDate = new Date(playbackTimestamp);
-      
-      // Assign it directly to the environment lighting config
+    if (!viewInstance) return;
+
+    // 1. TIMELINE OVERRIDE: User is scrubbing or playing historical data
+    if (playbackTimestamp) {
       viewInstance.set("environment", {
         ...viewInstance.environment,
         lighting: {
           type: "sun",
-          date: newDate,
+          date: new Date(playbackTimestamp),
           directShadowsEnabled: true, // Enables building shadows
         }
       });
+      return; // Exit here so we don't start the real-world ticker!
     }
+
+    // 2. REAL-TIME FALLBACK: Set immediately to "Now"
+    viewInstance.set("environment", {
+      ...viewInstance.environment,
+      lighting: {
+        type: "sun",
+        date: new Date(),
+        directShadowsEnabled: true,
+      }
+    });
+
+    // Start a background ticker to keep the shadows moving naturally (updates every 1 minute)
+    const realtimeTicker = setInterval(() => {
+      viewInstance.set("environment", {
+        ...viewInstance.environment,
+        lighting: {
+          type: "sun",
+          date: new Date(),
+          directShadowsEnabled: true,
+        }
+      });
+    }, 60000); // 60,000ms = 1 minute
+
+    // Clean up the ticker if we switch back to historical playback
+    return () => clearInterval(realtimeTicker);
   }, [playbackTimestamp, viewInstance]);
 
   // --- 2. DYNAMICALLY MOUNT/UNMOUNT BUILDING LAYERS ---

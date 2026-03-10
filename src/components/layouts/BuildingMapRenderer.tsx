@@ -156,7 +156,10 @@ export const BuildingMapRenderer: React.FC = () => {
       {/* KEEP DRAWER FOR SENSOR DETAILS */}
       <SensorDrawer
         isOpen={!!selectedSensor}
-        onClose={() => setSelectedSensor(null)}
+        onClose={() => {
+          setSelectedSensor(null);
+          setPlaybackTimestamp(null); 
+        }}
         sensor={selectedSensor}
         onTimePlay={setPlaybackTimestamp}
       />

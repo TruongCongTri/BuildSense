@@ -11,6 +11,7 @@ import {
   YAxis,
   ReferenceLine,
   CartesianGrid,
+  Rectangle,
 } from "recharts";
 import type { Sensor, HistoricalData } from "../../../shared/types";
 import {
@@ -98,6 +99,26 @@ const formatTooltipLabel = (
   });
 };
 
+const CustomBarShape = (props: any) => {
+  const { x, y, height, fill } = props;
+  const barWidth = 6; 
+  
+  if (height === undefined || height === null || Number.isNaN(height) || height <= 0) {
+    return null;
+  }
+
+  return (
+    <Rectangle
+      x={x - barWidth / 2} 
+      y={y}
+      width={barWidth}
+      height={height}
+      fill={fill}
+      radius={[2, 2, 0, 0]} 
+    />
+  );
+};
+
 interface SensorChartSectionProps {
   sensor: Sensor;
   isOpen: boolean;
@@ -121,7 +142,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
 }) => {
   const [currentNow, setCurrentNow] = useState(() => Date.now());
 
-  // 1-second ticker to continuously expand the "Now" boundary
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentNow(Date.now());
@@ -129,7 +149,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // --- 1. CURRENT-TIME AWARE CALENDAR BOUNDARIES ---
   const timeBounds = useMemo(() => {
     if (!dateRange?.from) return { start: 0, endOfDay: 0, maxDataTime: 0 };
     
@@ -139,7 +158,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     const start = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0).getTime();
     const endOfDay = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999).getTime();
 
-    // Use the ticking currentNow state
     const maxDataTime = endOfDay > currentNow ? currentNow : endOfDay;
 
     return { start, endOfDay, maxDataTime };
@@ -151,7 +169,7 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     return timeBounds.endOfDay - timeBounds.start <= 24 * 60 * 60 * 1000;
   }, [dateRange, timeBounds]);
 
-  // --- 2. STATE ---
+  // 🌟 RESTORED TO DEFAULT: Shows the entire history, no more empty 5-minute graphs!
   const [timeRange, setTimeRange] = useState<number[]>([
     timeBounds.start,
     timeBounds.maxDataTime,
@@ -161,9 +179,9 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
   );
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Sync state cleanly when Calendar bounds change
-  const rangeKey = `${dateRange?.from?.getTime()}-${dateRange?.to?.getTime()}`;
+  const rangeKey = `${sensor.id}-${dateRange?.from?.getTime()}-${dateRange?.to?.getTime()}`;
   const [prevRangeKey, setPrevRangeKey] = useState(rangeKey);
+  
   if (rangeKey !== prevRangeKey) {
     setPrevRangeKey(rangeKey);
     setTimeRange([timeBounds.start, timeBounds.maxDataTime]);
@@ -171,54 +189,47 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     setIsPlaying(false);
   }
 
-  // "Sticky Edge" Logic using React 18's Render-Phase Update
   const [prevMaxTime, setPrevMaxTime] = useState(timeBounds.maxDataTime);
   
   if (timeBounds.maxDataTime !== prevMaxTime) {
-    const delta = timeBounds.maxDataTime - prevMaxTime; // Calculate exactly how many ms passed
+    const delta = timeBounds.maxDataTime - prevMaxTime;
     setPrevMaxTime(timeBounds.maxDataTime);
 
-    const isToday = dateRange?.to 
-      ? (dateRange.to.getTime() >= new Date().setHours(0,0,0,0)) 
-      : true;
+    const isToday = dateRange?.to ? (dateRange.to.getTime() >= new Date().setHours(0,0,0,0)) : true;
 
     if (isToday) {
-      // Pull the Viewing Window forward
       setTimeRange(prev => {
-        // If the right thumb was at the edge previously, pull it forward
-        if (prevMaxTime - prev[1] < 5000) {
-          // 🌟 FIX: If the user zoomed in (left thumb is not at midnight), slide the left thumb too!
-          // This creates the "live moving graph" effect!
+        if (timeBounds.maxDataTime - prev[1] < 5000) {
           const newStart = prev[0] > timeBounds.start ? prev[0] + delta : prev[0];
-          return [newStart, timeBounds.maxDataTime + 60000];
+          return [newStart, timeBounds.maxDataTime]; 
         }
         return prev;
       });
 
-      // Pull the Playback Timeline forward
       setPlaybackTime(prev => {
-        if (prevMaxTime - prev < 5000 && !isPlaying) {
-          return timeBounds.maxDataTime;
-        }
+        if (timeBounds.maxDataTime - prev < 5000 && !isPlaying) return timeBounds.maxDataTime;
         return prev;
       });
     }
   }
 
-  // --- 3. DATA FILTERING ---
+  // 🌟 GUARANTEES PURE NUMBERS: Safely plots the bars and prevents stacking
   const rangeData = useMemo(() => {
-    return chartData.filter((d) => {
-      const t = parseTimestamp(d.timestamp);
-      return t >= timeRange[0] && t <= timeRange[1];
-    });
+    return chartData
+      .map((d) => ({
+        ...d,
+        numericTime: parseTimestamp(d.timestamp)
+      }))
+      .filter((d) => d.numericTime >= timeRange[0] && d.numericTime <= timeRange[1]);
   }, [chartData, timeRange]);
 
   const animatedData = useMemo(() => {
     if (!isPlaying && playbackTime >= timeRange[1]) return rangeData;
 
     return rangeData.map((d) => {
-      const t = parseTimestamp(d.timestamp);
-      return t <= playbackTime ? d : { timestamp: d.timestamp };
+      return d.numericTime <= playbackTime 
+        ? d 
+        : { timestamp: d.timestamp, numericTime: d.numericTime };
     });
   }, [rangeData, playbackTime, isPlaying, timeRange]);
 
@@ -231,7 +242,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     return [min - Math.abs(min) * 0.1, max + Math.abs(max) * 0.1];
   }, [rangeData]);
 
-  // --- 4. PLAYBACK ENGINE ---
   const stepMs = isSingleDay ? (15 * 60 * 1000) : (60 * 60 * 1000);
 
   useEffect(() => {
@@ -256,13 +266,15 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
   }, [playbackTime, isPlaying, onTimePlay]);
 
   const togglePlay = () => {
-    if (!isPlaying && playbackTime >= timeRange[1])
+    if (!isPlaying && playbackTime >= timeRange[1] - 5000) {
       setPlaybackTime(timeRange[0]);
+    }
     setIsPlaying(!isPlaying);
   };
 
   const handleReset = () => {
     setIsPlaying(false);
+    // 🌟 RESTORED TO FULL DAY RESET
     setTimeRange([timeBounds.start, timeBounds.maxDataTime]);
     setPlaybackTime(timeBounds.maxDataTime);
   };
@@ -273,7 +285,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
     return (sum / rangeData.length).toFixed(1);
   }, [rangeData]);
 
-  // --- 5. BESPOKE CHART RENDERING ---
   const renderChart = () => {
     const playheadLine =
       !isPlaying && playbackTime >= timeRange[1] ? null : (
@@ -286,15 +297,14 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
 
     const sharedXAxis = (
       <XAxis
-        dataKey="timestamp"
+        dataKey="numericTime" 
         type="number"
-        scale="time"
-        domain={[timeRange[0], timeRange[1]]}
+        domain={[timeRange[0], timeRange[1] + 60000]}
         tickFormatter={formatXAxisTick}
         tick={{ fontSize: 10 }}
         stroke="hsl(var(--muted-foreground))"
-        minTickGap={20}
-        padding={{right: 20}}
+        minTickGap={30}
+        allowDataOverflow={true} 
       />
     );
 
@@ -349,26 +359,13 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
         <BarChart
           data={animatedData}
           margin={{ top: 10, right: 0, bottom: 0, left: -20 }}
-          // 1. 🌟 Ensure there is always a gap/category defined so bars don't collapse
-          barCategoryGap="10%"
         >
           <CartesianGrid
             strokeDasharray="3 3"
             vertical={false}
             stroke="hsl(var(--border))"
           />
-          <XAxis
-            dataKey="timestamp"
-            type="number"
-            scale="time"
-            // 2. 🌟 Strict domain matching our ticking timeRange
-            domain={[timeRange[0], timeRange[1]]}
-            tickFormatter={formatXAxisTick}
-            tick={{ fontSize: 10 }}
-            stroke="hsl(var(--muted-foreground))"
-            // 3. 🌟 Increase minTickGap to 50 to stabilize the grid calculation
-            minTickGap={50}
-          />
+          {sharedXAxis}
           <YAxis
             domain={yDomain}
             tick={{ fontSize: 10 }}
@@ -394,7 +391,12 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
               fontSize: 10,
             }}
           />
-          <Bar dataKey="value" fill="#3b82f6" radius={[2, 2, 0, 0]} isAnimationActive={false} barSize={8} />
+          <Bar 
+            dataKey="value" 
+            fill="#3b82f6" 
+            isAnimationActive={false} 
+            shape={<CustomBarShape />} 
+          />
           {playheadLine}
         </BarChart>
       );
@@ -452,7 +454,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
       onOpenChange={onToggle}
       className="flex flex-col gap-3"
     >
-      {/* Header */}
       <div className="flex items-center justify-between">
         <CollapsibleTrigger className="flex items-center gap-3 focus:outline-none">
           <BarChart2 className="w-4 h-4 text-primary" />
@@ -466,13 +467,12 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
           )}
         </CollapsibleTrigger>
 
-        {/* THE NEW CALENDAR POPOVER */}
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs justify-start text-left font-normal w-[180px] bg-card border-border hover:bg-accent/50"
+              className="h-7 text-xs justify-start text-left font-normal w-auto min-w-[160px] pr-3 bg-card border-border hover:bg-accent/50"
             >
               <CalendarIcon className="mr-2 h-3 w-3" />
               {dateRange?.from ? (
@@ -503,7 +503,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
 
       <CollapsibleContent className="w-full overflow-hidden space-y-4 pt-1">
         <div className="bg-card border border-border rounded-xl p-4 shadow-sm w-full transition-colors duration-200 space-y-5">
-          {/* VIEWING WINDOW (Only visible if 1 Day is selected) */}
           {isSingleDay && (
             <>
               <div className="space-y-3">
@@ -533,7 +532,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
                     {formatSliderLabel(timeBounds.maxDataTime, !isSingleDay)}
                   </span>
                 </div>
-                {/* 1000ms steps so it glides smoothly by 1 second! */}
                 <Slider
                   value={timeRange}
                   min={timeBounds.start}
@@ -550,7 +548,6 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
             </>
           )}
 
-          {/* TIMELINE PLAYBACK (Available for 1D and Multi-Day) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
@@ -594,18 +591,16 @@ export const SensorChartSection: React.FC<SensorChartSectionProps> = ({
               </span>
               <span>{formatSliderLabel(timeRange[1], !isSingleDay)}</span>
             </div>
-            {/* Playhead sweeps strictly up to maxDataTime */}
             <Slider
               value={[playbackTime]}
               min={timeRange[0]}
               max={timeRange[1]}
-              step={1000} // Smooth 1-second increments
+              step={1000}
               onValueChange={(vals) => { setPlaybackTime(vals[0]); setIsPlaying(false); }}
             />
           </div>
         </div>
 
-        {/* Main Chart Card */}
         <div className="bg-card border border-border rounded-xl p-4 shadow-lg w-full overflow-hidden transition-colors duration-200">
           <div className="flex justify-between items-start mb-4">
             <div>
