@@ -10,6 +10,7 @@ import type { Building, Sensor } from "shared/types";
 import { SensorTooltip } from "../sensor/SensorTooltip";
 import { createSensorMarkerURI } from "@/utils/svgIconGenerator";
 import Layer from "@arcgis/core/layers/Layer";
+import { BasemapSwitcher, type BasemapType } from "../map/BasemapSwitcher";
 
 //
 interface MapContainerProps {
@@ -45,6 +46,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const [viewInstance, setViewInstance] = useState<SceneView | null>(null);
   const graphicsLayerRef = useRef<GraphicsLayer | null>(null);
 
+  const [basemap, setBasemap] = useState<BasemapType>('hybrid');
+  
   const sensorsRef = useRef<Sensor[]>(sensors);
   useEffect(() => {
     sensorsRef.current = sensors;
@@ -136,6 +139,14 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       view.destroy();
     };
   }, []);
+
+  // --- APPLY ACTIVE BASEMAP DYNAMICALLY ---
+  useEffect(() => {
+    if (mapInstance) {
+      // Use the ArcGIS Accessor .set() method to bypass React's strict immutability linter!
+      mapInstance.set("basemap", basemap);
+    }
+  }, [basemap, mapInstance]);
 
   // --- DAYLIGHT SYNC EFFECT ---
   // If playing back history, sync sun to playback. Otherwise, sync to real-world time!
@@ -312,8 +323,6 @@ export const MapContainer: React.FC<MapContainerProps> = ({
           existingGraphic.attributes.isFocused = isFocused;
         }
 
-        // 🛑 WE NEVER OVERWRITE existingGraphic.geometry HERE!
-        // Overwriting geometry causes the 3D flicker. Since buildings don't move, we leave it alone.
       } else {
         // --- 3. CREATE NEW SENSOR ---
         const svgUrl = createSensorMarkerURI(
@@ -368,6 +377,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   return (
     <div className="relative w-full h-full">
       <div ref={mapDiv} className="w-full h-full bg-background transition-colors duration-200" />
+      
+      <BasemapSwitcher 
+        currentBasemap={basemap} 
+        onBasemapChange={setBasemap} 
+      />
+      
       <SensorTooltip
         visible={tooltipState.visible}
         x={tooltipState.x}

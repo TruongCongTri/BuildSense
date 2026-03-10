@@ -63,7 +63,7 @@ export const DashboardSensorTypes: React.FC<DashboardSensorTypesProps> = ({ sens
                   <div 
                     key={idx} 
                     // Click routes specific query parameter
-                    onClick={() => navigate(`/datalog?type=${stat.name}`)}
+                    onClick={() => navigate(`/sensors?type=${stat.name}`)}
                     className="flex items-center justify-between cursor-pointer p-3 -mx-3 rounded-lg hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center gap-4">
@@ -87,7 +87,7 @@ export const DashboardSensorTypes: React.FC<DashboardSensorTypesProps> = ({ sens
         <div className="px-6 py-4 border-t border-border/50 text-center shrink-0 mt-auto bg-card/50">
           <button 
             // General routing fallback
-            onClick={() => navigate('/datalog')}
+            onClick={() => navigate('/sensors')}
             className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer w-full"
           >
             View All Inventory

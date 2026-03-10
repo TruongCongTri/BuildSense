@@ -51,6 +51,7 @@ interface SensorTableSectionProps {
   totalPages: number;
   itemsPerPage: number;
   setItemsPerPage: (items: number) => void;
+  onRowClick: (timestamp: number) => void;
 }
 
 export const SensorTableSection: React.FC<SensorTableSectionProps> = ({
@@ -68,6 +69,7 @@ export const SensorTableSection: React.FC<SensorTableSectionProps> = ({
   currentPage,
   setCurrentPage,
   totalPages,
+  onRowClick
 }) => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -157,12 +159,15 @@ export const SensorTableSection: React.FC<SensorTableSectionProps> = ({
                     <TableRow><TableCell colSpan={3} className="h-24 text-center text-muted-foreground text-xs">No records found.</TableCell></TableRow>
                   ) : (
                     paginatedData.map((record, idx) => {
+                      const timestampNum = Number(record.timestamp);
                       const date = new Date(Number(record.timestamp));
                       const timeString = date.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
                       const isOffline = record.healthStatus === 'Offline' || record.adminStatus === 'Maintenance';
 
                       return (
-                        <TableRow key={`${record.timestamp}-${idx}`} className="border-border/50 hover:bg-muted/30 transition-colors">
+                        <TableRow key={`${record.timestamp}-${idx}`} 
+                        onClick={() => onRowClick(timestampNum)}
+                        className="border-border/50 hover:bg-muted/30 transition-colors cursor-pointer">
                           <TableCell className="py-2.5 text-xs text-muted-foreground font-medium">{timeString}</TableCell>
                           {/* Renders dynamic badge */}
                           <TableCell className="py-2.5 text-center">{getStatusBadge(record)}</TableCell>

@@ -2,15 +2,17 @@ import React, { useEffect, useState, useMemo } from 'react';
 import type { Sensor, HistoricalData } from '../../../shared/types';
 import { getSensorIcon } from '../../utils/iconMap';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useNavigate } from 'react-router-dom';
 
 // Child Components
 import { SensorDetailsSection } from './SensorDetailsSection';
 import { SensorChartSection } from './SensorChartSection';
 import { SensorTableSection } from './SensorTableSection';
 import { SensorLiveReadingSection } from './SensorLiveReadingSection';
+import { Button } from '../ui/button';
 
 interface SensorDrawerProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ interface SensorDrawerProps {
 
 export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sensor, onTimePlay }) => {
   const { liveValues } = useWebSocket();
+  const navigate = useNavigate();
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(true);
   const [isChartOpen, setIsChartOpen] = useState(true);
@@ -196,9 +199,24 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
           </div>
           <h2 className="text-lg font-bold text-foreground tracking-wide m-0">Live Analysis</h2>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 px-2.5 text-xs text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+            onClick={() => {
+              onClose(); // Close drawer first so it's not lingering
+              navigate(`/sensors/${sensor.id}`);
+            }}
+          >
+            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+            Full Details
+          </Button>
+          
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 min-h-0 w-full">
@@ -232,6 +250,10 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
             sortKey={sortKey} sortOrder={sortOrder} toggleSort={toggleSort} 
             currentPage={currentPage} setCurrentPage={setCurrentPage} 
             totalPages={totalPages} itemsPerPage={itemsPerPage} setItemsPerPage={setItemsPerPage} 
+            onRowClick={(timestamp: number) => {
+              onClose();
+              navigate(`/sensors/${sensor.id}?time=${timestamp}`);
+            }}
           />
         </div>
       </ScrollArea>

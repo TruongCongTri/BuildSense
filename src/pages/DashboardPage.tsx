@@ -228,7 +228,7 @@ export const DashboardPage: React.FC = () => {
         trendDirection: "up",
         trendText: "2 added this month",
         trendClassName: "text-emerald-500",
-        onClick: () => navigate('/datalog')
+        onClick: () => navigate('/sensors')
       },
       {
         title: "Active Sensors",
@@ -240,7 +240,7 @@ export const DashboardPage: React.FC = () => {
         trendText: `${maintenanceCount} in maintenance`,
         trendClassName: maintenanceCount > 0 ? "text-amber-500" : "text-muted-foreground",
         // Routes to Admin Status filter
-        onClick: () => navigate('/datalog?adminStatus=Active') 
+        onClick: () => navigate('/sensors?adminStatus=Active') 
       },
       {
         title: "Active Alerts",
@@ -264,7 +264,7 @@ export const DashboardPage: React.FC = () => {
         trendText: `${offlineCount} hardware offline`,
         trendClassName: offlineCount > 0 ? "text-slate-500" : "text-emerald-500",
         // Routes to Health Status filter
-        onClick: () => navigate('/datalog?healthStatus=Offline&healthStatus=Error')
+        onClick: () => navigate('/sensors?healthStatus=Offline&healthStatus=Error')
       }
     ];
   }, [sensors, buildings, alerts, liveValues, navigate]);
