@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, LineChart, Line } from 'recharts';
 import type { HistoricalData, Sensor } from '../../../shared/types';
 
 interface SensorDetailChartProps {
@@ -61,6 +61,85 @@ export const SensorDetailChart: React.FC<SensorDetailChartProps> = ({ data, sens
     return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
   };
 
+  // DYNAMIC CHART RENDERER
+  const renderChartType = () => {
+    const commonProps = {
+      data: chartData,
+      margin: { top: 10, right: 10, left: -20, bottom: 0 }
+    };
+
+    const commonXAxis = (
+      <XAxis 
+        dataKey="timeNum" type="number" domain={['dataMin', 'dataMax']} 
+        tickFormatter={formatXAxis} fontSize={11} stroke="var(--muted-foreground)" 
+        tickMargin={10} axisLine={false} tickLine={false} minTickGap={30}
+      />
+    );
+
+    const commonYAxis = <YAxis fontSize={11} stroke="var(--muted-foreground)" tickMargin={10} axisLine={false} tickLine={false} />;
+    const commonGrid = <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" />;
+    const commonTooltip = <RechartsTooltip content={<CustomTooltip sensor={sensor} />} cursor={{ stroke: 'var(--muted-foreground)', strokeWidth: 1, strokeDasharray: '4 4' }} />;
+
+    switch (sensor.type) {
+      case 'Load':
+        // BAR CHART for discrete load events (Blue)
+        return (
+          <BarChart {...commonProps}>
+            {commonGrid} {commonXAxis} {commonYAxis} {commonTooltip}
+            <Bar 
+              dataKey="chartValue" 
+              fill="#3b82f6" // Blue-500
+              radius={[2, 2, 0, 0]} 
+              isAnimationActive={false} 
+              maxBarSize={8}
+            />
+          </BarChart>
+        );
+
+      case 'Strain':
+        // LINE CHART for sharp structural variations (Violet)
+        return (
+          <LineChart {...commonProps}>
+            {commonGrid} {commonXAxis} {commonYAxis} {commonTooltip}
+            <Line 
+              type="monotone" 
+              dataKey="chartValue" 
+              stroke="#8b5cf6" // Violet-500
+              strokeWidth={2} 
+              dot={false} 
+              connectNulls={false} 
+              isAnimationActive={false} 
+            />
+          </LineChart>
+        );
+
+      case 'Temperature':
+      default:
+        // AREA CHART for smooth ambient changes (Orange)
+        return (
+          <AreaChart {...commonProps}>
+            <defs>
+              <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            {commonGrid} {commonXAxis} {commonYAxis} {commonTooltip}
+            <Area 
+              type="monotone" 
+              dataKey="chartValue" 
+              stroke="#f97316" // Orange-500
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#colorTemp)" 
+              connectNulls={false}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        );
+    }
+  };
+  
   return (
     <Card className="flex flex-col h-full bg-card shadow-md border-border overflow-hidden min-w-0 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/50 rounded-xl">
       <CardHeader className="border-b border-border/50 pb-4 pt-4 shrink-0 bg-muted/20">
@@ -74,43 +153,7 @@ export const SensorDetailChart: React.FC<SensorDetailChartProps> = ({ data, sens
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" />
-              <XAxis 
-                dataKey="timeNum" 
-                type="number" 
-                domain={['dataMin', 'dataMax']} 
-                tickFormatter={formatXAxis} 
-                fontSize={11} 
-                stroke="var(--muted-foreground)" 
-                tickMargin={10} 
-                axisLine={false} 
-                tickLine={false} 
-                minTickGap={30}
-              />
-              <YAxis fontSize={11} stroke="var(--muted-foreground)" tickMargin={10} axisLine={false} tickLine={false} />
-              
-              <RechartsTooltip 
-                content={<CustomTooltip sensor={sensor} />} 
-                cursor={{ stroke: 'var(--muted-foreground)', strokeWidth: 1, strokeDasharray: '4 4' }} 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="chartValue" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={2}
-                fillOpacity={1} 
-                fill="url(#colorValue)" 
-                connectNulls={false} // 🌟 Breaks the line if the sensor goes offline
-                isAnimationActive={false}
-              />
-            </AreaChart>
+            {renderChartType()}
           </ResponsiveContainer>
         )}
       </CardContent>

@@ -2,10 +2,12 @@ import React, { useEffect, useState, useRef } from "react";
 import type { LiveDataPayload, LiveSensorValue, WebhookAlertPayload } from "../../shared/types";
 import { WebSocketContext } from "./WebSocketContext";
 
+const DEFAULT_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+
 export const WebSocketProvider: React.FC<{
   children: React.ReactNode;
   wsUrl?: string;
-}> = ({ children, wsUrl = "ws://localhost:3001" }) => {
+}> = ({ children, wsUrl = DEFAULT_WS_URL }) => {
   const [liveValues, setLiveValues] = useState<Record<string, LiveSensorValue>>({});
   const [alerts, setAlerts] = useState<WebhookAlertPayload[]>([]);
   const [isConnected, setIsConnected] = useState(false);

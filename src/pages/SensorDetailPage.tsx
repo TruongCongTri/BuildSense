@@ -9,6 +9,7 @@ import { SensorMetadata } from "@/components/sensor/SensorMetadata";
 import { SensorDetailFilters } from "@/components/sensor/SensorDetailsFilters";
 import { SensorDetailTable } from "@/components/sensor/SensorDetailsTable";
 import { SensorDetailChart } from "@/components/sensor/SensorDetailsChart";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceDot } from 'recharts';
 
   // Safely parses dates whether they are numbers, epoch strings, or ISO strings
 const safeGetTime = (val: string | number): number => {
@@ -37,8 +38,8 @@ export const SensorDetailPage: React.FC = () => {
     setIsLoading(true);
     try {
       const [sRes, hRes] = await Promise.all([
-        fetch("http://localhost:3001/api/sensors").then(res => res.json()),
-        fetch(`http://localhost:3001/api/sensors/${id}/data?days=30&limit=5000`).then(res => res.json())
+        fetch(`${import.meta.env.VITE_API_URL}/sensors`).then(res => res.json()),
+        fetch(`${import.meta.env.VITE_API_URL}/sensors/${id}/data?days=30&limit=5000`).then(res => res.json())
       ]);
       
       const foundSensor = (sRes.sensors || []).find((s: Sensor) => s.id === id);
@@ -129,6 +130,28 @@ export const SensorDetailPage: React.FC = () => {
     });
   }, [history, searchParams, referenceTime]);
   
+  // DIALOG DATA: Filters history down to the specific day of the selected reading
+  const dialogChartData = useMemo(() => {
+    if (!selectedReading || !history.length) return [];
+    
+    const targetMs = safeGetTime(selectedReading.timestamp);
+    // Get start and end of that specific calendar day
+    const startOfDay = new Date(targetMs).setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetMs).setHours(23, 59, 59, 999);
+
+    return history
+      .filter(d => {
+        const t = safeGetTime(d.timestamp);
+        return t >= startOfDay && t <= endOfDay;
+      })
+      .map(d => ({
+        ...d,
+        timeNum: safeGetTime(d.timestamp),
+        chartValue: (d.healthStatus === 'Offline' || d.adminStatus === 'Maintenance') ? null : d.value
+      }))
+      .sort((a, b) => a.timeNum - b.timeNum); // Sort left-to-right (chronological) for the chart
+  }, [selectedReading, history]);
+
   // Helper for Modal Dialog rendering
   const getStatusBadge = (status: string, type: 'health' | 'data') => {
     if (type === 'health') {
@@ -179,7 +202,7 @@ export const SensorDetailPage: React.FC = () => {
 
         {sensor && <SensorMetadata sensor={sensor} />}
 
-        <div className="flex flex-col xl:flex-row gap-6 flex-1 min-h-0 w-full overflow-hidden">
+        <div className="flex flex-col xl:flex-row gap-6 flex-1 min-h-0 w-full ">
           
           {/* 1. FILTERS (Far Left): Don't shrink, stay fixed */}
           <div className="h-full shrink-0">
@@ -189,7 +212,7 @@ export const SensorDetailPage: React.FC = () => {
           {sensor && (
             <>
               {/* 2. TABLE (Middle): Resizable width, starts at 50% */}
-              <div className="xl:resize-x overflow-hidden flex flex-col xl:w-[50%] min-w-[350px] max-w-full h-full pb-2 xl:pb-0 pr-2 shrink-0">
+              <div className="xl:resize-x  flex flex-col xl:w-[50%] min-w-[350px] max-w-full h-full pb-2 xl:pb-0 pr-2 shrink-0">
                 <SensorDetailTable 
                   data={filteredHistory} 
                   sensor={sensor} 
@@ -208,8 +231,9 @@ export const SensorDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* WIDENED DIALOG FOR THE GRAPH */}
       <Dialog open={!!selectedReading} onOpenChange={(isOpen) => { if (!isOpen) handleCloseReading(); }}>
-        <DialogContent className="sm:max-w-md bg-card border-border shadow-2xl">
+        <DialogContent className="sm:max-w-2xl bg-card border-border shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
               <Activity className="w-5 h-5 text-primary" /> Specific Reading Data
@@ -221,25 +245,77 @@ export const SensorDetailPage: React.FC = () => {
           </DialogHeader>
           
           {selectedReading && sensor && (
-            <div className="space-y-6 pt-4">
-              <div className="bg-muted p-6 rounded-xl text-center border border-border/50 shadow-inner">
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest mb-2">Recorded Value</p>
-                <div className="text-5xl font-extrabold tracking-tight text-foreground font-mono">
-                  {selectedReading.healthStatus === 'Offline' ? 'OFFLINE' : selectedReading.value.toFixed(3)}
-                  {selectedReading.healthStatus !== 'Offline' && <span className="text-2xl text-muted-foreground ml-2 font-sans">{sensor.unit}</span>}
+            <div className="space-y-4 pt-4">
+              
+              {/* TOP ROW: Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-muted p-5 rounded-xl text-center border border-border/50 shadow-inner">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mb-1">Recorded Value</p>
+                  <div className="text-4xl font-extrabold tracking-tight text-foreground font-mono">
+                    {selectedReading.healthStatus === 'Offline' ? 'OFFLINE' : selectedReading.value.toFixed(3)}
+                    {selectedReading.healthStatus !== 'Offline' && <span className="text-xl text-muted-foreground ml-1 font-sans">{sensor.unit}</span>}
+                  </div>
+                </div>
+
+                <div className="grid grid-rows-2 gap-3">
+                  <div className="bg-background border border-border/50 rounded-xl p-3 flex flex-col justify-center items-start pl-4">
+                    <span className="text-xs text-muted-foreground mb-1">Sensor Health at time</span>
+                    <div>{getStatusBadge(selectedReading.healthStatus, 'health')}</div>
+                  </div>
+                  <div className="bg-background border border-border/50 rounded-xl p-3 flex flex-col justify-center items-start pl-4">
+                    <span className="text-xs text-muted-foreground mb-1">Data Alert at time</span>
+                    <div>{getStatusBadge(selectedReading.dataStatus, 'data')}</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Sensor Health at time</span>
-                  <div>{getStatusBadge(selectedReading.healthStatus, 'health')}</div>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Data Alert at time</span>
-                  <div>{getStatusBadge(selectedReading.dataStatus, 'data')}</div>
+              {/* BOTTOM ROW: 24-Hour Context Graph */}
+              <div className="h-[220px] bg-background border border-border/50 rounded-xl p-4 pt-3 flex flex-col shadow-inner">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 flex items-center justify-between">
+                  <span>24-Hour Context ({new Date(safeGetTime(selectedReading.timestamp)).toLocaleDateString()})</span>
+                  <span className="flex items-center gap-1.5 normal-case tracking-normal">
+                    {/* 🌟 THE FIX: Changed from bg-destructive to bg-green-500 */}
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-500 border border-background"></span> Selected Point
+                  </span>
+                </p>
+                
+                <div className="flex-1 min-h-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dialogChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                      <XAxis 
+                        dataKey="timeNum" type="number" domain={['dataMin', 'dataMax']} 
+                        tickFormatter={(tick) => { const d = new Date(tick); return `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`; }} 
+                        fontSize={10} stroke="var(--muted-foreground)" tickMargin={8} axisLine={false} tickLine={false} minTickGap={40}
+                      />
+                      <YAxis fontSize={10} stroke="var(--muted-foreground)" tickMargin={8} axisLine={false} tickLine={false} />
+                      
+                      <Line 
+                        type="monotone" 
+                        dataKey="chartValue" 
+                        stroke={sensor.type === 'Load' ? '#3b82f6' : sensor.type === 'Strain' ? '#8b5cf6' : '#f97316'} 
+                        strokeWidth={2} 
+                        dot={false}
+                        connectNulls={false}
+                        isAnimationActive={false}
+                      />
+                      
+                      {selectedReading.healthStatus !== 'Offline' && selectedReading.adminStatus !== 'Maintenance' && (
+                        <ReferenceDot 
+                          x={safeGetTime(selectedReading.timestamp)} 
+                          y={selectedReading.value} 
+                          r={5} 
+                          fill="#22c55e" 
+                          stroke="hsl(var(--background))" 
+                          strokeWidth={2} 
+                          isFront={true}
+                        />
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
+
             </div>
           )}
         </DialogContent>

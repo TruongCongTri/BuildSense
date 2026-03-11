@@ -21,6 +21,8 @@ interface SensorDrawerProps {
   onTimePlay?: (timestamp: number) => void; 
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
 export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sensor, onTimePlay }) => {
   const { liveValues } = useWebSocket();
   const navigate = useNavigate();
@@ -74,7 +76,7 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
           daysToFetch = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
         }
 
-        const response = await fetch(`http://localhost:3001/api/sensors/${sensor?.id}/data?days=${daysToFetch}&limit=5000`);
+        const response = await fetch(`${API_BASE_URL}/sensors/${sensor?.id}/data?days=${daysToFetch}&limit=5000`);
         const json = await response.json();
         
         if (!ignore && json.metadata && !json.metadata.error) {
@@ -105,7 +107,7 @@ export const SensorDrawer: React.FC<SensorDrawerProps> = ({ isOpen, onClose, sen
           daysToFetch = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
         }
 
-        const response = await fetch(`http://localhost:3001/api/sensors/${sensor?.id}/data?days=${daysToFetch}&limit=2000`);
+        const response = await fetch(`${API_BASE_URL}/sensors/${sensor?.id}/data?days=${daysToFetch}&limit=2000`);
         const json = await response.json();
         if (!ignore && json.metadata && !json.metadata.error) {
           setTableData(json.history);

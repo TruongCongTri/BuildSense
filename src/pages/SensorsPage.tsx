@@ -10,7 +10,7 @@ import { SensorsTable } from "@/components/sensor/SensorTable";
 
 export const SensorsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { liveValues } = useWebSocket(); // 🌟 Hooks into the live updates!
+  const { liveValues } = useWebSocket();
   
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [sensors, setSensors] = useState<Sensor[]>([]);
@@ -22,9 +22,11 @@ export const SensorsPage: React.FC = () => {
     setIsLoading(true);
     try {
       const [bRes, sRes] = await Promise.all([
-        fetch("http://localhost:3001/api/buildings").then((res) => res.json()),
-        fetch("http://localhost:3001/api/sensors?limit=2000").then((res) => res.json())
+        fetch(`${import.meta.env.VITE_API_URL}/buildings`).then((res) => res.json()),
+        fetch(`${import.meta.env.VITE_API_URL}/sensors?limit=2000`).then((res) => res.json())
       ]);
+      
+      
       setBuildings(bRes.buildings || []);
       setSensors(sRes.sensors || []);
     } catch (err) {

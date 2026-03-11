@@ -7,6 +7,8 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { SensorDrawer } from "../sensor/SensorDrawer";
 import { TopSearchBar } from "../TopSearchBar";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
 export const BuildingMapRenderer: React.FC = () => {
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -30,7 +32,7 @@ export const BuildingMapRenderer: React.FC = () => {
 
   // 1. Initial Load: Fetch Buildings
   useEffect(() => {
-    fetch("http://localhost:3001/api/buildings")
+    fetch(`${API_BASE_URL}/buildings`)
       .then((res) => res.json())
       .then((json) => {
         if (json.buildings) {
@@ -81,7 +83,7 @@ export const BuildingMapRenderer: React.FC = () => {
 
     // Simply call the API! If activeBuildingIds is empty, the backend safely returns { sensors: [] }
     fetch(
-      `http://localhost:3001/api/sensors/by-buildings?ids=${activeBuildingIds.join(",")}`,
+      `${API_BASE_URL}/sensors/by-buildings?ids=${activeBuildingIds.join(",")}`,
     )
       .then((res) => res.json())
       .then((json) => {

@@ -49,6 +49,7 @@ export interface WebhookAlertPayload {
 
 //  Defines the shape of the overall incoming WS message
 export interface LiveDataPayload {
+  sensorId: string;
   type: 'LIVE_DATA';
   liveValues: Record<string, LiveSensorValue>;
   alerts: WebhookAlertPayload[];

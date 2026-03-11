@@ -25,8 +25,8 @@ export const DataLogPage: React.FC = () => {
 
   useEffect(() => {
     Promise.all([
-      fetch("http://localhost:3001/api/buildings").then((res) => res.json()),
-      fetch("http://localhost:3001/api/sensors?limit=2000").then((res) =>
+      fetch(`${import.meta.env.VITE_API_URL}/buildings`).then((res) => res.json()),
+      fetch(`${import.meta.env.VITE_API_URL}/sensors?limit=2000`).then((res) =>
         res.json(),
       ),
     ]).then(([bRes, sRes]) => {
@@ -47,7 +47,7 @@ export const DataLogPage: React.FC = () => {
     try {
       const fetchPromises = sensors.map((sensor) =>
         fetch(
-          `http://localhost:3001/api/sensors/${sensor.id}/data?days=1&limit=20`,
+          `${import.meta.env.VITE_API_URL}/sensors/${sensor.id}/data?days=1&limit=20`,
         )
           .then((res) => res.json())
           .then((json) => ({ sensor, history: json.history || [] })),

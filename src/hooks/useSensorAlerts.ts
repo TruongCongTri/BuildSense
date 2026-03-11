@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import type { WebhookAlertPayload } from '../../shared/types';
 
+const DEFAULT_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+
 export const useSensorAlerts = (
   onAlertReceived: (alert: WebhookAlertPayload) => void,
-  wsUrl: string = 'ws://localhost:3001'
+  wsUrl: string = DEFAULT_WS_URL
 ) => {
   useEffect(() => {
     const ws = new WebSocket(wsUrl);

@@ -65,11 +65,11 @@ export const DashboardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/buildings")
+    fetch(`${import.meta.env.VITE_API_URL}/buildings`)
       .then((res) => res.json())
       .then((json) => setBuildings(json.buildings || []));
 
-    fetch("http://localhost:3001/api/sensors?limit=2000")
+    fetch(`${import.meta.env.VITE_API_URL}/sensors?limit=2000`)
       .then((res) => res.json())
       .then((json) => setSensors(json.sensors || []));
   }, []);
@@ -99,7 +99,7 @@ export const DashboardPage: React.FC = () => {
       try {
         const fetchPromises = chartSensors.slice(0, 5).map((sensor) =>
           fetch(
-            `http://localhost:3001/api/sensors/${sensor.id}/data?days=${dateRange}&limit=500`,
+            `${import.meta.env.VITE_API_URL}/sensors/${sensor.id}/data?days=${dateRange}&limit=500`,
           )
             .then((res) => res.json())
             .then((json) => ({

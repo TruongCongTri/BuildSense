@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { LiveDataPayload } from '../../shared/types';
 
-export const useLiveStream = (wsUrl: string = 'ws://localhost:3001') => {
+const DEFAULT_WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+
+export const useLiveStream = (wsUrl: string = DEFAULT_WS_URL) => {
   // Stores the latest value for each sensor ID
   const [liveValues, setLiveValues] = useState<Record<string, LiveDataPayload>>({});
 
