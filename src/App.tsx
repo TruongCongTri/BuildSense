@@ -25,6 +25,7 @@ const App: React.FC = () => {
           <Route path="/sensors/:id" element={<SensorDetailPage />} />
           {/* Add future routes here like /settings, /network, etc. */}
           
+          <Route path="*" element={<Navigate to="/map" replace />} />
         </Route>
 
       </Routes>
